@@ -1,0 +1,54 @@
+\documentclass{article}
+\usepackage{amsmath, graphicx} 
+\usepackage{braket}
+
+\title{Documento de Diseño - Simulador Cuántico}
+\begin{document}
+\author{}
+\date{}
+
+\maketitle
+
+\section{Descripción}
+Construye una interfaz web que despliega una consola donde se puedan crear circuitos cuánticos.
+
+\section{Requerimientos}
+\subsection{Compuertas necesarias}
+\begin{itemize}
+  \item \textbf{Hadamard (H):} Crea superposición, llevando $\ket{0}$ a $\frac{\ket{0}+\ket{1}}{\sqrt{2}}$.
+  \item \textbf{NOT (X):} Invierte el estado del qubit, $\ket{0}\leftrightarrow\ket{1}$.
+  \item \textbf{CNOT:} Aplica NOT al qubit objetivo solo si el qubit de control es $\ket{1}$.
+  \item \textbf{Toffoli (CCNOT):} Aplica NOT al objetivo solo si los dos qubits de control son $\ket{1}$.
+  \item \textbf{SWAP:} Intercambia los estados de dos qubits.
+  \item \textbf{Identity (I):} No modifica el estado del qubit.
+  \item \textbf{T:} Añade una fase de $\pi/4$ al estado $\ket{1}$.
+  \item \textbf{S:} Añade una fase de $\pi/2$ al estado $\ket{1}$ (raíz cuadrada de Z).
+  \item \textbf{Z:} Añade una fase de $\pi$ al estado $\ket{1}$ (inversión de fase).
+  \item \textbf{Tdg ($T^\dagger$):} Inversa de T; añade una fase de $-\pi/4$ al estado $\ket{1}$.
+  \item \textbf{Sdg ($S^\dagger$):} Inversa de S; añade una fase de $-\pi/2$ al estado $\ket{1}$.
+  \item \textbf{Phase ($P(\varphi)$):} Añade una fase arbitraria $\varphi$ al estado $\ket{1}$.
+  \item \textbf{RZ($\theta$):} Rota el estado un ángulo $\theta$ alrededor del eje $Z$ de la esfera de Bloch.
+  \item \textbf{SX:} Raíz cuadrada de NOT; equivale a media rotación sobre el eje $X$.
+  \item \textbf{Y:} Rota $\pi$ alrededor del eje $Y$, combinando inversión de bit y de fase.
+  \item \textbf{RX($\theta$):} Rota el estado un ángulo $\theta$ alrededor del eje $X$ de la esfera de Bloch.
+  \item \textbf{RY($\theta$):} Rota el estado un ángulo $\theta$ alrededor del eje $Y$ de la esfera de Bloch.
+\end{itemize}
+
+\section{Algoritmos}
+\subsection{Teleportación cuántica (3 qubits)}
+    El circuito completo consta de:
+    \begin{itemize}
+        \item 3 registros cuánticos ($q_0, q_1, q_2$) y 2 registros clásicos ($m_0, m_1$).
+        \item 2 puertas $H$ y 2 puertas $\text{CNOT}$ (profundidad cuántica de 4 capas antes de la medición).
+        \item Control clásico dinámico para disparar $X$ y $Z$ en tiempo real antes de que $q_2$ sufra decoherencia.
+    \end{itemize}
+    
+\subsection{Algoritmo de Deutsch}
+    \begin{itemize}
+        \item Compuertas requeridas: Solo $X$, Hadamard ($H$) y un oráculo $U_f$ construido con compuertas $\mathrm{CNOT}$ y $X$.
+        \item Qué hace: Dada una función booleana $f: \{0,1\} \to \{0,1\}$ con la promesa de ser constante o balanceada, decide cuál es en una sola evaluación del oráculo.
+    \end{itemize}
+%https://www.youtube.com/watch?v=7MdEHsRZxvo&t=357s
+    
+\end{document}
+
