@@ -49,6 +49,107 @@ Construye una interfaz web que despliega una consola donde se puedan crear circu
         \item Qué hace: Dada una función booleana $f: \{0,1\} \to \{0,1\}$ con la promesa de ser constante o balanceada, decide cuál es en una sola evaluación del oráculo.
     \end{itemize}
 %https://www.youtube.com/watch?v=7MdEHsRZxvo&t=357s
-    
+
+    \section{Diseño del Módulo ``Aprende''}
+
+El módulo \textbf{Aprende} tiene como objetivo proporcionar un entorno interactivo y guiado dentro del emulador cuántico que permita a los usuarios comprender fenómenos fundamentales de la mecánica cuántica más allá de la construcción abstracta de circuitos. A través de experimentos visuales de óptica cuántica, este apartado conecta el formalismo matemático de los estados cuánticos con la intuición física.
+
+El módulo se estructura en experiencias independientes, comenzando por dos escenarios estrechamente relacionados: el simulador del interferómetro de Mach-Zehnder con fotones individuales y el experimento de medida libre de interacción basado en las bombas de Elitzur-Vaidman.
+
+\subsection{Simulador del Interferómetro de Mach-Zehnder con Fotones}
+
+Este submódulo modela el comportamiento ondulatorio y corpuscular de fotones individuales al atravesar un interferómetro de Mach-Zehnder, ilustrando los principios de superposición e interferencia cuántica.
+
+\subsubsection{Modelo Físico y Matemático}
+El estado espacial del fotón dentro del interferómetro se representa como un cúbit en la base computacional $\{|0\rangle, |1\rangle\}$, donde $|0\rangle$ corresponde al camino superior (brazo $A$) y $|1\rangle$ al camino inferior (brazo $B$). Los componentes ópticos del simulador se mapean directamente a operadores unitarios del motor del emulador:
+
+\begin{itemize}
+    \item \textbf{Fuente de fotones individuales:} Inicializa el sistema en el estado $|0\rangle$.
+    \item \textbf{Divisores de haz ($BS_1$ y $BS_2$):} Se modelan mediante la compuerta de Hadamard (o la matriz de divisor de haz 50/50 correspondiente):
+    \begin{equation}
+        H = \frac{1}{\sqrt{2}} \begin{pmatrix} 1 & 1 \\ 1 & -1 \end{pmatrix}
+    \end{equation}
+    \item \textbf{Desfasador ($\phi$):} Introduce una fase relativa en uno de los brazos del interferómetro, modelada mediante la matriz de fase:
+    \begin{equation}
+        P(\phi) = \begin{pmatrix} 1 & 0 \\ 0 & e^{i\phi} \end{pmatrix}
+    \end{equation}
+    \item \textbf{Espejos ($M_1$ y $M_2$):} Redirigen los haces hacia el segundo divisor sin alterar la fase relativa entre los caminos.
+    \item \textbf{Detectores ($D_0$ y $D_1$):} Realizan una medición proyectiva en la base $\{|0\rangle, |1\rangle\}$.
+\end{itemize}
+
+Tras atravesar el sistema completo ($H \cdot P(\phi) \cdot H |0\rangle$), las probabilidades de detección calculadas por el emulador son:
+\begin{equation}
+    P(D_0) = \cos^2\left(\frac{\phi}{2}\right), \qquad P(D_1) = \sin^2\left(\frac{\phi}{2}\right)
+\end{equation}
+
+\subsubsection{Funcionalidades e Interfaz de Usuario}
+Para facilitar el aprendizaje activo, la vista del simulador contempla los siguientes elementos:
+\begin{itemize}
+    \item \textbf{Esquema óptico interactivo:} Representación visual de la fuente, espejos, divisores de haz y detectores, con animaciones del recorrido del fotón o de las amplitudes de probabilidad.
+    \item \textbf{Control de fase ($\phi$):} Deslizador continuo en el rango $[0, 2\pi]$ para observar en tiempo real el tránsito entre interferencia constructiva y destructiva.
+    \item \textbf{Modificación de la configuración:} Interruptores para habilitar o retirar el segundo divisor de haz ($BS_2$) o bloquear uno de los brazos, permitiendo observar la desaparición del patrón de interferencia.
+    \item \textbf{Panel de resultados:} Gráfica de probabilidades teóricas junto a un contador e histograma de detecciones acumuladas en $D_0$ y $D_1$ (modo de fotón único o ráfaga de $N$ fotones).
+\end{itemize}
+
+\subsection{Medida Libre de Interacción: Bombas de Elitzur-Vaidman}
+
+Como extensión directa del interferómetro de Mach-Zehnder, este submódulo implementa el experimento mental de Elitzur-Vaidman, demostrando cómo es posible obtener información sobre la presencia de un objeto sin que el fotón interactúe físicamente con él.
+
+\subsubsection{Modelo de Simulación}
+En esta experiencia se configura el interferómetro sin desfase ($\phi = 0$), de modo que en ausencia de obstáculos el $100\%$ de los fotones llega al detector $D_0$ debido a la interferencia destructiva en $D_1$. Posteriormente, se introduce una ``bomba'' ultrasensible en uno de los brazos (por ejemplo, el brazo $|1\rangle$), la cual puede encontrarse en uno de dos estados:
+
+\begin{itemize}
+    \item \textbf{Bomba defectuosa (inactiva):} No absorbe fotones ni realiza medición alguna; el interferómetro opera con normalidad y el fotón siempre es detectado en $D_0$.
+    \item \textbf{Bomba activa (funcional):} Actúa como un detector perfecto en el brazo $|1\rangle$, colapsando la función de onda del fotón antes de llegar a $BS_2$.
+\end{itemize}
+
+Cuando la bomba está activa, el emulador evalúa tres desenlaces posibles por cada fotón emitido, resumidos en la Tabla~\ref{tab:elitzur_vaidman}.
+
+\begin{table}[h!]
+    \centering
+    \begin{tabular}{|l|c|p{7.5cm}|}
+        \hline
+        \textbf{Resultado} & \textbf{Probabilidad} & \textbf{Interpretación Física en el Emulador} \\
+        \hline
+        Explosión de la bomba & $50\%$ & El fotón toma el brazo $|1\rangle$ y es absorbido por la bomba, detonándola. \\
+        \hline
+        Detección en $D_0$ & $25\%$ & El fotón toma el brazo $|0\rangle$, atraviesa $BS_2$ y llega a $D_0$. El resultado es inconcluso (no distingue si la bomba está activa o inactiva). \\
+        \hline
+        Detección en $D_1$ & $25\%$ & El fotón toma el brazo $|0\rangle$ y emerge en $D_1$. Como $D_1$ nunca se activa sin obstrucción, se certifica que la bomba está activa \textbf{sin haberla detonado}. \\
+        \hline
+    \end{tabular}
+    \caption{Distribución de resultados para el experimento de Elitzur-Vaidman con una bomba activa.}
+    \label{tab:elitzur_vaidman}
+\end{table}
+
+\subsubsection{Flujo Interactivo y Modos de Uso}
+\begin{itemize}
+    \item \textbf{Selección de escenario:} El usuario puede elegir explícitamente si la bomba es funcional o defectuosa para estudiar el fenómeno, o activar un \textit{modo de prueba oculta} donde el sistema asigna el estado aleatoriamente y el usuario debe deducirlo.
+    \item \textbf{Visualización del colapso:} Indicadores visuales que muestran el cambio en las amplitudes tras el primer divisor de haz y el evento de absorción (detonación) o detección libre de interacción en $D_1$.
+    \item \textbf{Registro estadístico:} Resumen acumulado de intentos totales, bombas detonadas, detecciones inconclusas ($D_0$) y detecciones exitosas libres de interacción ($D_1$), permitiendo contrastar los resultados empíricos con las probabilidades teóricas ($50\%$, $25\%$, $25\%$).
+\end{itemize}
+
+\section{Ejecución Automática del Programa}
+
+Como requisito transversal de diseño para todo el emulador cuántico —abarcando tanto el editor principal de circuitos como el módulo \textbf{Aprende}— el sistema adoptará un modelo de \textbf{ejecución automática reactiva}. El objetivo es eliminar la fricción de pulsar manualmente un botón de ejecución tras cada cambio y ofrecer retroalimentación inmediata al usuario.
+
+\subsection{Arquitectura Reactiva de Simulación}
+El núcleo de simulación estará suscrito a los cambios de estado de la interfaz de usuario. Cualquier modificación en la configuración actual disparará automáticamente un nuevo ciclo de cálculo y actualización visual. Los eventos disparadores incluyen:
+
+\begin{itemize}
+    \item Inserción, eliminación o reordenamiento de compuertas en el editor de circuitos.
+    \item Modificación de parámetros continuos o discretos (ángulos de rotación, fase $\phi$ en el interferómetro de Mach-Zehnder, número de disparos o \textit{shots}).
+    \item Cambios en la configuración experimental del módulo \textbf{Aprende} (colocar o retirar la bomba de Elitzur-Vaidman, habilitar o deshabilitar divisores de haz).
+\end{itemize}
+
+\subsection{Gestión del Rendimiento y Fluidez}
+Para garantizar que la ejecución automática no degrade la experiencia de usuario al manipular controles continuos o circuitos con un mayor número de cúbits, se establecen los siguientes mecanismos técnicos:
+
+\begin{itemize}
+    \item \textbf{Control de frecuencia (\textit{Debounce / Throttle}):} En controles de ajuste continuo (como el deslizador de fase $\phi$), el emulador agrupará las actualizaciones en intervalos breves para evitar cálculos redundantes por cada píxel desplazado, manteniendo una respuesta visual fluida.
+    \item \textbf{Cancelación de ejecuciones obsoletas:} Si el usuario realiza una nueva modificación mientras una simulación previa sigue en curso, el motor cancelará el cálculo anterior y priorizará únicamente el estado más reciente.
+    \item \textbf{Sincronización de vistas:} Al completarse cada ejecución automática, el estado resultante actualizará de forma simultánea todos los componentes suscritos (vector de estado, esfera de Bloch, probabilidades de detectores e histogramas).
+    \item \textbf{Control opcional de pausa:} Aunque la ejecución automática estará habilitada por defecto en todo el programa, se contemplará un indicador discreto que permita pausar temporalmente la actualización en caso de que el usuario construya circuitos extensos que requieran mayor tiempo de cómputo.
+\end{itemize}
 \end{document}
 
