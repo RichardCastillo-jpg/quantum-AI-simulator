@@ -1,0 +1,3086 @@
+<!DOCTYPE html>
+<html lang="es" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Q-Lab Console — Simulador y Consola de Circuitos Cuánticos</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'ui-sans-serif', 'system-ui', '-apple-system', 'Segoe UI', 'Roboto', 'sans-serif'],
+            mono: ['JetBrains Mono', 'ui-monospace', 'SFMono-Regular', 'Menlo', 'Monaco', 'Consolas', 'monospace'],
+          },
+          colors: {
+            lab: {
+              bg: '#050811',
+              panel: '#0b1120',
+              card: '#0f172a',
+              border: '#1e293b',
+            }
+          }
+        }
+      }
+    };
+  </script>
+  <style>
+    :root {
+      color-scheme: dark;
+    }
+
+    body {
+      background-color: #050811;
+      background-image:
+        radial-gradient(circle at 12% 8%, rgba(34, 211, 238, 0.08), transparent 34%),
+        radial-gradient(circle at 88% 12%, rgba(168, 85, 247, 0.09), transparent 36%),
+        radial-gradient(circle at 50% 95%, rgba(16, 185, 129, 0.06), transparent 40%);
+      min-height: 100vh;
+    }
+
+    /* Custom subtle scrollbars for dark laboratory aesthetic */
+    ::-webkit-scrollbar {
+      width: 7px;
+      height: 7px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #070c18;
+      border-radius: 9999px;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #1e293b;
+      border-radius: 9999px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #334155;
+    }
+
+    /* Classical double-wire pattern */
+    .classical-wire {
+      height: 5px;
+      border-top: 1.5px solid #475569;
+      border-bottom: 1.5px solid #475569;
+    }
+
+    /* Matrix brackets for math inspector */
+    .matrix-bracket {
+      position: relative;
+      display: inline-grid;
+      grid-template-columns: repeat(2, auto);
+      gap: 2px 10px;
+      padding: 2px 8px;
+      border-left: 1.5px solid #64748b;
+      border-right: 1.5px solid #64748b;
+      border-radius: 4px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 0.72rem;
+      line-height: 1.3;
+    }
+
+    /* Subtle pulse for active debugger column */
+    @keyframes stepPulse {
+      0%, 100% { box-shadow: inset 0 0 18px rgba(34, 211, 238, 0.14); }
+      50% { box-shadow: inset 0 0 26px rgba(34, 211, 238, 0.28); }
+    }
+    .active-step-col {
+      background: rgba(34, 211, 238, 0.08);
+      border-left: 1px dashed rgba(34, 211, 238, 0.45);
+      border-right: 1px dashed rgba(34, 211, 238, 0.45);
+      animation: stepPulse 2.2s ease-in-out infinite;
+    }
+
+    /* Gate drag over highlight */
+    .cell-drop-hover {
+      background: rgba(34, 211, 238, 0.22) !important;
+      outline: 1.5px dashed #22d3ee;
+      outline-offset: -2px;
+    }
+
+    /* Range slider styling */
+    input[type="range"] {
+      accent-color: #22d3ee;
+    }
+  </style>
+</head>
+<body class="text-slate-200 font-sans antialiased selection:bg-cyan-500/30 selection:text-cyan-100">
+
+  <!-- Toast Notification Container -->
+  <div id="toast-container" class="fixed top-4 right-4 z-50 flex flex-col gap-2 pointer-events-none max-w-sm"></div>
+
+  <!-- Top Navigation & Global Debugger Bar -->
+  <header class="sticky top-0 z-40 border-b border-slate-800/90 bg-[#070b16]/90 backdrop-blur-md">
+    <div class="max-w-[1680px] mx-auto px-3 sm:px-5 py-2.5 flex flex-wrap items-center justify-between gap-3">
+      <!-- Brand -->
+      <div class="flex items-center gap-3">
+        <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-cyan-500/20 via-purple-500/20 to-emerald-500/20 border border-cyan-400/40 flex items-center justify-center shadow-[0_0_20px_rgba(34,211,238,0.18)]">
+          <svg class="w-5 h-5 text-cyan-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+            <circle cx="12" cy="12" r="9" class="opacity-60"></circle>
+            <ellipse cx="12" cy="12" rx="9" ry="3.6" transform="rotate(28 12 12)"></ellipse>
+            <ellipse cx="12" cy="12" rx="9" ry="3.6" transform="rotate(-28 12 12)"></ellipse>
+            <circle cx="12" cy="12" r="2" fill="currentColor"></circle>
+          </svg>
+        </div>
+        <div>
+          <div class="flex items-center gap-2">
+            <h1 class="text-sm sm:text-base font-bold tracking-tight text-white">Q-Lab Console</h1>
+            <span class="hidden sm:inline-flex items-center px-2 py-0.5 text-[10px] font-mono font-semibold rounded-full bg-cyan-500/10 text-cyan-300 border border-cyan-500/30">STATEVECTOR 2ⁿ</span>
+          </div>
+          <p class="text-[11px] text-slate-400 leading-tight">Laboratorio Interactivo y Consola de Circuitos Cuánticos</p>
+        </div>
+      </div>
+
+      <!-- Algorithm Presets Selector -->
+      <div class="flex flex-wrap items-center gap-1.5 bg-slate-900/90 p-1 rounded-xl border border-slate-800">
+        <span class="text-[10px] font-mono uppercase tracking-wider text-slate-400 px-2 hidden xl:inline">Algoritmos:</span>
+        <button id="btn-preset-teleport" onclick="QLab.loadPreset('teleport')" class="preset-btn px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all flex items-center gap-1.5">
+          <span class="w-1.5 h-1.5 rounded-full bg-cyan-400"></span>
+          Teleportación (3q)
+        </button>
+        <button id="btn-preset-deutsch" onclick="QLab.loadPreset('deutsch_b0')" class="preset-btn px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all flex items-center gap-1.5">
+          <span class="w-1.5 h-1.5 rounded-full bg-purple-400"></span>
+          Deutsch (2q)
+        </button>
+        <button id="btn-preset-blank" onclick="QLab.loadPreset('blank')" class="preset-btn px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all flex items-center gap-1.5">
+          <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+          Circuito Libre
+        </button>
+      </div>
+
+      <!-- Debugger / Simulation Controls -->
+      <div class="flex flex-wrap items-center gap-1.5">
+        <div class="flex items-center bg-slate-900/90 border border-slate-800 rounded-xl p-1 gap-1">
+          <button onclick="QLab.resetStep()" title="Reiniciar al estado inicial |0...0⟩" class="px-2 py-1.5 rounded-lg text-xs font-medium text-slate-300 hover:text-white hover:bg-slate-800 transition-colors">
+            ⏮ <span class="hidden sm:inline">Inicio</span>
+          </button>
+          <button onclick="QLab.prevStep()" title="Retroceder una capa" class="px-2 py-1.5 rounded-lg text-xs font-medium text-slate-300 hover:text-white hover:bg-slate-800 transition-colors">
+            ◀
+          </button>
+          <span id="step-indicator" class="px-2 py-1 text-[11px] font-mono text-cyan-300 bg-cyan-950/50 border border-cyan-500/20 rounded-md min-w-[82px] text-center">
+            Capa 0 / 0
+          </span>
+          <button onclick="QLab.nextStep()" title="Avanzar una capa (Depurar)" class="px-2 py-1.5 rounded-lg text-xs font-medium text-slate-300 hover:text-white hover:bg-slate-800 transition-colors">
+            ▶
+          </button>
+        </div>
+
+        <button onclick="QLab.runFull(true)" title="Ejecutar circuito completo con nuevo colapso proyectivo" class="px-3 py-2 rounded-xl text-xs font-semibold bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-slate-950 shadow-[0_0_15px_rgba(34,211,238,0.28)] transition-all active:scale-95">
+          ⚡ Ejecutar
+        </button>
+        <button onclick="QLab.runShots(1024)" title="Ejecutar 1024 mediciones independientes" class="px-3 py-2 rounded-xl text-xs font-semibold bg-purple-500/15 hover:bg-purple-500/25 text-purple-200 border border-purple-500/40 transition-all active:scale-95">
+          📊 1024 Shots
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Container -->
+  <main class="max-w-[1680px] mx-auto px-3 sm:px-5 py-4 space-y-4">
+
+    <!-- Algorithm Contextual Panel: QUANTUM TELEPORTATION -->
+    <section id="panel-teleport" class="hidden rounded-2xl border border-cyan-500/30 bg-gradient-to-r from-[#0b1327] via-[#0e1529] to-[#11132b] p-4 shadow-lg">
+      <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+        <!-- Description & Prep Controls -->
+        <div class="space-y-2.5 flex-1">
+          <div class="flex flex-wrap items-center gap-2">
+            <span class="px-2 py-0.5 text-[10px] font-mono font-bold uppercase rounded-md bg-cyan-500/20 text-cyan-300 border border-cyan-400/30">Protocolo Activo</span>
+            <h2 class="text-sm sm:text-base font-bold text-white">Teleportación Cuántica (3 Qubits + 2 Bits Clásicos Dinámicos)</h2>
+          </div>
+          <p class="text-xs text-slate-300 leading-relaxed max-w-3xl">
+            Transfiere el estado cuántico arbitrario <span class="font-mono text-cyan-300">|ψ⟩</span> de <span class="font-mono text-white">q0</span> hacia <span class="font-mono text-emerald-300">q2</span> usando un par de Bell compartido (<span class="font-mono">H(q1)</span>, <span class="font-mono">CNOT(q1→q2)</span>), medición en base de Bell (<span class="font-mono">CNOT(q0→q1)</span>, <span class="font-mono">H(q0)</span> — profundidad exacta de 4 capas cuánticas) y correcciones clásicas dinámicas <span class="font-mono text-amber-300">IF m1→X(q2)</span> e <span class="font-mono text-amber-300">IF m0→Z(q2)</span>.
+          </p>
+
+          <!-- State Preparation Controls -->
+          <div class="flex flex-wrap items-center gap-3 pt-1">
+            <div class="flex flex-wrap items-center gap-1.5">
+              <span class="text-[11px] font-medium text-slate-400">Preparar |ψ⟩ en q0:</span>
+              <button onclick="QLab.setTeleportState(Math.PI/2, 0)" class="px-2 py-1 text-[11px] font-mono rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-cyan-200 transition">|+</rangle></button>
+              <button onclick="QLab.setTeleportState(Math.PI, 0)" class="px-2 py-1 text-[11px] font-mono rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-cyan-200 transition">|1⟩</button>
+              <button onclick="QLab.setTeleportState(Math.PI/2, Math.PI/2)" class="px-2 py-1 text-[11px] font-mono rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-cyan-200 transition">|+i⟩</button>
+              <button onclick="QLab.setTeleportState(1.15, 0.85)" class="px-2 py-1 text-[11px] font-mono rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-purple-200 transition">|ψ⟩ Arbitrario</button>
+            </div>
+            <div class="flex flex-wrap items-center gap-3 bg-slate-950/60 px-3 py-1.5 rounded-xl border border-slate-800">
+              <label class="flex items-center gap-2 text-[11px] font-mono text-slate-300">
+                θ: <input id="tp-theta" type="range" min="0" max="3.14159" step="0.01" value="1.15" oninput="QLab.onTeleportSlider()" class="w-20 sm:w-24">
+                <span id="tp-theta-val" class="text-cyan-300 w-10">1.15</span>
+              </label>
+              <label class="flex items-center gap-2 text-[11px] font-mono text-slate-300">
+                φ: <input id="tp-phi" type="range" min="0" max="6.28318" step="0.01" value="0.85" oninput="QLab.onTeleportSlider()" class="w-20 sm:w-24">
+                <span id="tp-phi-val" class="text-purple-300 w-10">0.85</span>
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <!-- Fidelity & Dynamic Collapse Comparator -->
+        <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 bg-slate-950/80 border border-slate-800 rounded-xl p-3 shrink-0">
+          <div class="space-y-1 text-xs font-mono min-w-[195px]">
+            <div class="text-[10px] uppercase tracking-wider text-slate-400">Comparador Bloch (q0 inicial vs q2)</div>
+            <div class="flex justify-between gap-2">
+              <span class="text-cyan-300">q0 inic:</span>
+              <span id="tp-vec-init" class="text-slate-200">(0.00, 0.00, 1.00)</span>
+            </div>
+            <div class="flex justify-between gap-2">
+              <span class="text-emerald-300">q2 actual:</span>
+              <span id="tp-vec-final" class="text-slate-200">(0.00, 0.00, 1.00)</span>
+            </div>
+            <div class="flex items-center justify-between gap-2 pt-1 border-t border-slate-800">
+              <span class="text-slate-400">Colapso (m0, m1):</span>
+              <span id="tp-cbits-badge" class="px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-300 border border-amber-500/30 font-bold">--</span>
+            </div>
+            <div id="tp-corrections-status" class="text-[10px] text-slate-400">Correcciones: pendientes</div>
+          </div>
+
+          <div class="flex flex-col items-center justify-center border-t sm:border-t-0 sm:border-l border-slate-800 pt-2 sm:pt-0 sm:pl-3 min-w-[135px]">
+            <span class="text-[10px] font-mono uppercase text-slate-400">Fidelidad q0 → q2</span>
+            <span id="tp-fidelity" class="text-2xl font-bold font-mono text-emerald-400">100.0%</span>
+            <button onclick="QLab.runFull(true)" class="mt-1.5 w-full px-2.5 py-1.5 rounded-lg text-[11px] font-semibold bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 border border-emerald-500/40 transition-all active:scale-95">
+              🎲 Nuevo colapso
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Algorithm Contextual Panel: DEUTSCH'S ALGORITHM -->
+    <section id="panel-deutsch" class="hidden rounded-2xl border border-purple-500/30 bg-gradient-to-r from-[#120d26] via-[#101228] to-[#0b1526] p-4 shadow-lg">
+      <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+        <div class="space-y-2.5 flex-1">
+          <div class="flex flex-wrap items-center gap-2">
+            <span class="px-2 py-0.5 text-[10px] font-mono font-bold uppercase rounded-md bg-purple-500/20 text-purple-300 border border-purple-400/30">Algoritmo Activo</span>
+            <h2 class="text-sm sm:text-base font-bold text-white">Algoritmo de Deutsch (1 única evaluación del oráculo U<sub>f</sub>)</h2>
+          </div>
+          <p class="text-xs text-slate-300 leading-relaxed max-w-3xl">
+            Determina si una función booleana <span class="font-mono text-purple-300">f: {0,1} → {0,1}</span> es <strong>constante</strong> o <strong>balanceada</strong> en una sola consulta usando interferencia cuántica (solo compuertas <span class="font-mono">X</span>, <span class="font-mono">H</span> y <span class="font-mono">CNOT</span>).
+          </p>
+          <!-- Oracle Selector -->
+          <div class="flex flex-wrap items-center gap-2 pt-0.5">
+            <span class="text-[11px] font-medium text-slate-400">Seleccionar Oráculo U<sub>f</sub>:</span>
+            <button id="btn-oracle-c0" onclick="QLab.loadPreset('deutsch_c0')" class="oracle-btn px-2.5 py-1.5 rounded-lg text-xs font-mono border transition">
+              f(x)=0 <span class="text-[10px] opacity-75">(Const · I)</span>
+            </button>
+            <button id="btn-oracle-c1" onclick="QLab.loadPreset('deutsch_c1')" class="oracle-btn px-2.5 py-1.5 rounded-lg text-xs font-mono border transition">
+              f(x)=1 <span class="text-[10px] opacity-75">(Const · X)</span>
+            </button>
+            <button id="btn-oracle-b0" onclick="QLab.loadPreset('deutsch_b0')" class="oracle-btn px-2.5 py-1.5 rounded-lg text-xs font-mono border transition">
+              f(x)=x <span class="text-[10px] opacity-75">(Bal · CNOT)</span>
+            </button>
+            <button id="btn-oracle-b1" onclick="QLab.loadPreset('deutsch_b1')" class="oracle-btn px-2.5 py-1.5 rounded-lg text-xs font-mono border transition">
+              f(x)=¬x <span class="text-[10px] opacity-75">(Bal · CNOT+X)</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Deutsch Live Verdict -->
+        <div class="flex items-center gap-4 bg-slate-950/80 border border-slate-800 rounded-xl p-3.5 shrink-0 min-w-[270px]">
+          <div class="text-center pr-3 border-r border-slate-800">
+            <div class="text-[10px] font-mono uppercase text-slate-400">Medición q0</div>
+            <div id="deutsch-m0" class="text-2xl font-bold font-mono text-purple-300 mt-0.5">|0⟩</div>
+            <div id="deutsch-prob" class="text-[10px] font-mono text-slate-400">100.0%</div>
+          </div>
+          <div class="space-y-1">
+            <div class="text-[10px] font-mono uppercase text-slate-400">Veredicto (1 consulta a U<sub>f</sub>)</div>
+            <div id="deutsch-verdict" class="text-sm font-bold text-emerald-400">FUNCIÓN CONSTANTE</div>
+            <div id="deutsch-detail" class="text-[11px] text-slate-400">q0 colapsa a |0⟩ ⇒ f(0) = f(1)</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Primary 2-Column Laboratory Layout -->
+    <div class="grid grid-cols-1 xl:grid-cols-12 gap-4 items-start">
+
+      <!-- LEFT / CENTER WORKSPACE (8 columns on xl): Gate Palette + Circuit Editor + Console -->
+      <div class="xl:col-span-8 space-y-4 min-w-0">
+
+        <!-- 1. GATE PALETTE & LIVE MATH INSPECTOR -->
+        <section class="rounded-2xl border border-slate-800/90 bg-[#0a101f]/95 p-3.5 shadow-xl">
+          <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
+            <div class="flex items-center gap-2">
+              <h2 class="text-xs font-bold uppercase tracking-wider text-slate-200">Paleta de Compuertas Cuánticas</h2>
+              <span class="text-[11px] text-slate-400 hidden sm:inline">• Haz clic o arrastra sobre la cuadrícula</span>
+            </div>
+            <div class="flex items-center gap-2">
+              <span id="selected-tool-badge" class="px-2.5 py-1 rounded-lg text-[11px] font-mono bg-cyan-500/15 text-cyan-300 border border-cyan-500/30">
+                Herramienta: H (Hadamard)
+              </span>
+              <button id="btn-eraser" onclick="QLab.selectTool('ERASER')" class="px-2.5 py-1 rounded-lg text-[11px] font-medium bg-slate-800 hover:bg-rose-500/20 hover:text-rose-300 border border-slate-700 text-slate-300 transition">
+                🗑 Borrador
+              </button>
+            </div>
+          </div>
+
+          <!-- Gate Groups -->
+          <div id="gate-palette" class="grid grid-cols-1 md:grid-cols-2 gap-2.5 mb-3"></div>
+
+          <!-- Live Mathematical Tooltip / Inspector Strip -->
+          <div id="gate-inspector" class="rounded-xl bg-slate-950/90 border border-slate-800 px-3.5 py-2.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div class="space-y-0.5 min-w-0">
+              <div class="flex items-center gap-2 flex-wrap">
+                <span id="insp-name" class="text-xs font-bold text-cyan-300">Hadamard (H)</span>
+                <span id="insp-cli" class="text-[10px] font-mono px-1.5 py-0.5 rounded bg-slate-800 text-slate-300">CLI: H 0</span>
+              </div>
+              <p id="insp-desc" class="text-[11px] text-slate-400">Crea superposición equiprobable, llevando |0⟩ a (|0⟩ + |1⟩)/√2 y |1⟩ a (|0⟩ − |1⟩)/√2.</p>
+            </div>
+            <div id="insp-matrix" class="shrink-0 flex items-center gap-2 text-slate-200"></div>
+          </div>
+        </section>
+
+        <!-- 2. VISUAL CIRCUIT EDITOR -->
+        <section class="rounded-2xl border border-slate-800/90 bg-[#0a101f]/95 p-3.5 shadow-xl">
+          <!-- Circuit Toolbar -->
+          <div class="flex flex-wrap items-center justify-between gap-2 pb-3 mb-3 border-b border-slate-800/80">
+            <div class="flex items-center gap-2">
+              <h2 class="text-xs font-bold uppercase tracking-wider text-slate-200">Editor Visual de Circuito</h2>
+              <span class="text-[10px] font-mono text-slate-400 hidden sm:inline">(Clic en compuerta = editar • Clic derecho = borrar)</span>
+            </div>
+            <div class="flex flex-wrap items-center gap-1.5">
+              <!-- Qubits +/- -->
+              <div class="flex items-center bg-slate-900 rounded-lg border border-slate-800 text-[11px] font-mono">
+                <span class="px-2 text-slate-400">Qubits</span>
+                <button onclick="QLab.changeQubits(-1)" class="px-2 py-1 hover:bg-slate-800 text-slate-200 border-l border-slate-800">−</button>
+                <span id="lbl-num-qubits" class="px-2 text-cyan-300 font-bold">3</span>
+                <button onclick="QLab.changeQubits(1)" class="px-2 py-1 hover:bg-slate-800 text-slate-200 border-l border-slate-800">+</button>
+              </div>
+              <!-- Classical bits +/- -->
+              <div class="flex items-center bg-slate-900 rounded-lg border border-slate-800 text-[11px] font-mono">
+                <span class="px-2 text-slate-400">Clásicos</span>
+                <button onclick="QLab.changeCbits(-1)" class="px-2 py-1 hover:bg-slate-800 text-slate-200 border-l border-slate-800">−</button>
+                <span id="lbl-num-cbits" class="px-2 text-amber-300 font-bold">2</span>
+                <button onclick="QLab.changeCbits(1)" class="px-2 py-1 hover:bg-slate-800 text-slate-200 border-l border-slate-800">+</button>
+              </div>
+              <!-- Layers +/- -->
+              <div class="flex items-center bg-slate-900 rounded-lg border border-slate-800 text-[11px] font-mono">
+                <span class="px-2 text-slate-400">Capas</span>
+                <button onclick="QLab.changeSteps(-1)" class="px-2 py-1 hover:bg-slate-800 text-slate-200 border-l border-slate-800">−</button>
+                <span id="lbl-num-steps" class="px-2 text-purple-300 font-bold">9</span>
+                <button onclick="QLab.changeSteps(1)" class="px-2 py-1 hover:bg-slate-800 text-slate-200 border-l border-slate-800">+</button>
+              </div>
+              <button onclick="QLab.clearCircuit()" class="px-2.5 py-1 rounded-lg text-[11px] font-medium bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 border border-rose-500/30 transition">
+                Limpiar
+              </button>
+            </div>
+          </div>
+
+          <!-- Horizontally Scrollable Circuit Board -->
+          <div class="overflow-x-auto pb-2">
+            <div id="circuit-board-wrapper" class="relative inline-block min-w-full select-none">
+              <!-- Zone Labels Header -->
+              <div id="circuit-zones" class="relative flex items-center ml-[74px] mb-1 h-5"></div>
+              <!-- Step Numbers Header -->
+              <div id="circuit-step-headers" class="relative flex items-center ml-[74px] mb-1.5"></div>
+              <!-- Circuit Rows + SVG Overlay Container -->
+              <div id="circuit-stage" class="relative">
+                <!-- SVG Layer for Multi-Qubit Connectors & Classical Double Lines -->
+                <svg id="circuit-svg" class="absolute inset-0 pointer-events-none z-10 overflow-visible"></svg>
+                <!-- Quantum & Classical Rows rendered dynamically -->
+                <div id="circuit-rows" class="relative z-20"></div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- 3. INTERACTIVE QUANTUM CONSOLE (CLI + SYNCHRONIZED SCRIPT) -->
+        <section class="rounded-2xl border border-slate-800/90 bg-[#070c18] overflow-hidden shadow-xl">
+          <!-- Console Tabs Header -->
+          <div class="flex flex-wrap items-center justify-between gap-2 px-3.5 py-2 bg-[#0c1324] border-b border-slate-800">
+            <div class="flex items-center gap-2">
+              <div class="flex gap-1.5 mr-1">
+                <span class="w-2.5 h-2.5 rounded-full bg-rose-500/80"></span>
+                <span class="w-2.5 h-2.5 rounded-full bg-amber-500/80"></span>
+                <span class="w-2.5 h-2.5 rounded-full bg-emerald-500/80"></span>
+              </div>
+              <button id="tab-cli" onclick="QLab.switchConsoleTab('cli')" class="px-2.5 py-1 rounded-lg text-xs font-mono font-semibold bg-cyan-500/15 text-cyan-300 border border-cyan-500/30 transition">
+                &gt;_ Consola CLI
+              </button>
+              <button id="tab-script" onclick="QLab.switchConsoleTab('script')" class="px-2.5 py-1 rounded-lg text-xs font-mono font-medium text-slate-400 hover:text-slate-200 border border-transparent transition">
+                📄 Script Sincronizado
+              </button>
+            </div>
+            <div class="flex items-center gap-1.5">
+              <button onclick="QLab.executeCommand('HELP')" class="px-2 py-1 rounded-md text-[11px] font-mono bg-slate-800 hover:bg-slate-700 text-slate-300 transition">HELP</button>
+              <button onclick="QLab.clearTerminalLog()" class="px-2 py-1 rounded-md text-[11px] font-mono bg-slate-800 hover:bg-slate-700 text-slate-300 transition">Limpiar Log</button>
+            </div>
+          </div>
+
+          <!-- TAB A: Interactive CLI Terminal -->
+          <div id="console-cli-pane" class="p-3 space-y-2.5">
+            <!-- Quick Command Chips -->
+            <div class="flex flex-wrap items-center gap-1.5">
+              <span class="text-[10px] font-mono text-slate-500">Ejemplos:</span>
+              <button onclick="QLab.fillCommand('H 0')" class="px-2 py-0.5 rounded bg-slate-900 hover:bg-slate-800 border border-slate-800 text-[10px] font-mono text-cyan-300">H 0</button>
+              <button onclick="QLab.fillCommand('CNOT 0 1')" class="px-2 py-0.5 rounded bg-slate-900 hover:bg-slate-800 border border-slate-800 text-[10px] font-mono text-purple-300">CNOT 0 1</button>
+              <button onclick="QLab.fillCommand('RX(pi/2) 0')" class="px-2 py-0.5 rounded bg-slate-900 hover:bg-slate-800 border border-slate-800 text-[10px] font-mono text-purple-300">RX(pi/2) 0</button>
+              <button onclick="QLab.fillCommand('TOFFOLI 0 1 2')" class="px-2 py-0.5 rounded bg-slate-900 hover:bg-slate-800 border border-slate-800 text-[10px] font-mono text-pink-300">TOFFOLI 0 1 2</button>
+              <button onclick="QLab.fillCommand('M 0 -> m0')" class="px-2 py-0.5 rounded bg-slate-900 hover:bg-slate-800 border border-slate-800 text-[10px] font-mono text-emerald-300">M 0 -&gt; m0</button>
+              <button onclick="QLab.fillCommand('IF m0 Z 2')" class="px-2 py-0.5 rounded bg-slate-900 hover:bg-slate-800 border border-slate-800 text-[10px] font-mono text-amber-300">IF m0 Z 2</button>
+              <button onclick="QLab.fillCommand('SHOTS 1024')" class="px-2 py-0.5 rounded bg-slate-900 hover:bg-slate-800 border border-slate-800 text-[10px] font-mono text-slate-300">SHOTS 1024</button>
+              <button onclick="QLab.fillCommand('LOAD deutsch_b1')" class="px-2 py-0.5 rounded bg-slate-900 hover:bg-slate-800 border border-slate-800 text-[10px] font-mono text-slate-300">LOAD deutsch_b1</button>
+            </div>
+
+            <!-- Terminal Output Log -->
+            <div id="terminal-log" class="h-48 overflow-y-auto rounded-xl bg-[#040710] border border-slate-800/90 p-3 font-mono text-[11.5px] leading-relaxed space-y-1"></div>
+
+            <!-- Command Input Prompt -->
+            <form id="cli-form" class="flex items-center gap-2 bg-[#040710] border border-slate-700/80 focus-within:border-cyan-400/70 rounded-xl px-3 py-2 transition">
+              <span class="font-mono text-xs font-bold text-cyan-400 select-none">qsh&gt;</span>
+              <input id="cli-input" type="text" autocomplete="off" spellcheck="false" placeholder="Escribe un comando (ej. H 0, CNOT 0 1, P(pi/4) 0, IF m1 X 2, RUN, HELP)..." class="flex-1 bg-transparent text-xs font-mono text-white placeholder-slate-500 focus:outline-none" />
+              <button type="submit" class="px-3 py-1 rounded-lg text-[11px] font-mono font-semibold bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-200 border border-cyan-500/30 transition">
+                Ejecutar ↵
+              </button>
+            </form>
+          </div>
+
+          <!-- TAB B: Synchronized Editable Script -->
+          <div id="console-script-pane" class="hidden p-3 space-y-2.5">
+            <div class="flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-400">
+              <span>El script se actualiza automáticamente al editar el circuito. También puedes modificarlo y aplicarlo al diagrama.</span>
+              <div class="flex items-center gap-2">
+                <button onclick="QLab.copyScript()" class="px-2.5 py-1 rounded-lg text-[11px] font-mono bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition">
+                  📋 Copiar
+                </button>
+                <button onclick="QLab.applyScriptEditor()" class="px-3 py-1 rounded-lg text-[11px] font-mono font-semibold bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40 transition">
+                  ✓ Aplicar al Circuito
+                </button>
+              </div>
+            </div>
+            <textarea id="script-editor" spellcheck="false" class="w-full h-56 rounded-xl bg-[#040710] border border-slate-800 focus:border-cyan-400/60 focus:outline-none p-3 font-mono text-xs text-cyan-100 leading-relaxed resize-y"></textarea>
+          </div>
+        </section>
+
+      </div>
+
+      <!-- RIGHT VISUALIZATION COLUMN (4 columns on xl): Bloch Spheres + Probabilities & Amplitudes -->
+      <div class="xl:col-span-4 space-y-4 min-w-0">
+
+        <!-- 4. BLOCH SPHERES PANEL (REDUCED DENSITY MATRICES) -->
+        <section class="rounded-2xl border border-slate-800/90 bg-[#0a101f]/95 p-3.5 shadow-xl">
+          <div class="flex items-center justify-between gap-2 mb-3">
+            <div>
+              <h2 class="text-xs font-bold uppercase tracking-wider text-slate-200">Esferas de Bloch por Qubit</h2>
+              <p class="text-[11px] text-slate-400">Matriz de densidad reducida ρ<sub>k</sub> = Tr<sub>≠k</sub>(|ψ⟩⟨ψ|) • Arrastra para rotar</p>
+            </div>
+            <button onclick="QLab.resetBlochCamera()" class="px-2 py-1 rounded-lg text-[10px] font-mono bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-800 transition">
+              Centrar Vista
+            </button>
+          </div>
+          <div id="bloch-grid" class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-2 gap-3"></div>
+        </section>
+
+        <!-- 5. STATEVECTOR AMPLITUDES & PROBABILITIES PANEL -->
+        <section class="rounded-2xl border border-slate-800/90 bg-[#0a101f]/95 p-3.5 shadow-xl">
+          <div class="flex flex-wrap items-center justify-between gap-2 mb-2.5">
+            <h2 class="text-xs font-bold uppercase tracking-wider text-slate-200">Probabilidades y Amplitudes</h2>
+            <div class="flex items-center bg-slate-900 p-0.5 rounded-lg border border-slate-800 text-[10px] font-mono">
+              <button id="viz-mode-state" onclick="QLab.setVizMode('state')" class="px-2 py-1 rounded-md bg-cyan-500/20 text-cyan-300 font-semibold transition">Vector Exacto</button>
+              <button id="viz-mode-shots" onclick="QLab.setVizMode('shots')" class="px-2 py-1 rounded-md text-slate-400 hover:text-slate-200 transition">Histograma Shots</button>
+            </div>
+          </div>
+
+          <!-- Dirac State Expression -->
+          <div class="mb-3 rounded-xl bg-slate-950/90 border border-slate-800 p-2.5">
+            <div class="flex items-center justify-between text-[10px] font-mono text-slate-400 mb-1">
+              <span>Estado Cuántico Actual |ψ⟩</span>
+              <span id="classical-reg-summary" class="text-amber-300">Clásicos: m0=0, m1=0</span>
+            </div>
+            <div id="dirac-expression" class="font-mono text-xs text-cyan-200 break-words leading-relaxed max-h-20 overflow-y-auto">
+              1.000|000⟩
+            </div>
+          </div>
+
+          <!-- Filter Non-Zero Toggle -->
+          <div class="flex items-center justify-between text-[11px] text-slate-400 mb-2">
+            <span id="prob-subtitle">Amplitud compleja (a + bi) y fase arg(α)</span>
+            <label class="flex items-center gap-1.5 cursor-pointer select-none">
+              <input id="chk-hide-zero" type="checkbox" onchange="QLab.renderProbabilities()" class="rounded bg-slate-900 border-slate-700 text-cyan-400">
+              <span>Ocultar 0%</span>
+            </label>
+          </div>
+
+          <!-- Probability Bars List -->
+          <div id="prob-bars-container" class="space-y-2 max-h-[380px] overflow-y-auto pr-1"></div>
+        </section>
+
+      </div>
+    </div>
+  </main>
+
+  <!-- Gate Configuration Modal (Parameters, Multi-Qubit Controls/Targets, Measurement, Classical Control) -->
+  <div id="gate-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+    <div class="w-full max-w-md rounded-2xl border border-slate-700/80 bg-[#0b1224] shadow-2xl overflow-hidden">
+      <div class="flex items-center justify-between px-4 py-3 bg-[#0f1830] border-b border-slate-800">
+        <div class="flex items-center gap-2">
+          <span id="modal-gate-badge" class="px-2 py-0.5 rounded-md font-mono text-xs font-bold bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">RX</span>
+          <h3 id="modal-title" class="text-sm font-bold text-white">Configurar Compuerta</h3>
+        </div>
+        <button onclick="QLab.closeModal()" class="text-slate-400 hover:text-white text-lg leading-none px-1">&times;</button>
+      </div>
+      <div id="modal-body" class="p-4 space-y-4 text-xs"></div>
+      <div class="flex items-center justify-between px-4 py-3 bg-[#090f1e] border-t border-slate-800">
+        <button id="modal-btn-delete" onclick="QLab.deleteModalOp()" class="hidden px-3 py-1.5 rounded-lg text-xs font-semibold bg-rose-500/15 hover:bg-rose-500/25 text-rose-300 border border-rose-500/30 transition">
+          🗑 Eliminar
+        </button>
+        <div class="flex items-center gap-2 ml-auto">
+          <button onclick="QLab.closeModal()" class="px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-800 hover:bg-slate-700 text-slate-300 transition">
+            Cancelar
+          </button>
+          <button onclick="QLab.saveModalOp()" class="px-4 py-1.5 rounded-lg text-xs font-semibold bg-cyan-500 hover:bg-cyan-400 text-slate-950 transition">
+            Guardar
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+  /**
+   * ============================================================================
+   * Q-Lab Console — Motor Exacto de Simulación Cuántica e Interfaz Sincronizada
+   * ============================================================================
+   * Convención de orden de bits (Big-Endian):
+   *   |q_0 q_1 ... q_{n-1}⟩ donde q_0 es el bit más significativo (MSB).
+   *   Máscara para el qubit q: mask = 1 << (n - 1 - q).
+   */
+  const QLab = (() => {
+    'use strict';
+
+    const SQRT1_2 = Math.SQRT1_2;
+    const CELL_W = 62;
+    const ROW_H = 54;
+    const LABEL_W = 74;
+
+    /* ------------------------------------------------------------------------
+     * 1. DEFINICIÓN DE LAS 17 COMPUERTAS + MEDICIÓN + CONTROL CLÁSICO
+     * ---------------------------------------------------------------------- */
+    const GATE_DEFS = {
+      H: {
+        symbol: 'H', name: 'Hadamard (H)', category: 'basic',
+        color: 'bg-cyan-500/20 border-cyan-400/70 text-cyan-200',
+        desc: 'Crea superposición, llevando |0⟩ a (|0⟩ + |1⟩)/√2 y |1⟩ a (|0⟩ − |1⟩)/√2.',
+        cli: 'H 0',
+        matrixHtml: `<span class="text-slate-400 font-mono text-[11px]">1/√2</span><div class="matrix-bracket"><span>1</span><span>1</span><span>1</span><span>−1</span></div>`
+      },
+      X: {
+        symbol: 'X', name: 'NOT / Pauli-X (X)', category: 'basic',
+        color: 'bg-sky-500/20 border-sky-400/70 text-sky-200',
+        desc: 'Invierte el estado del qubit: |0⟩ ↔ |1⟩ (rotación de π en eje X).',
+        cli: 'X 0',
+        matrixHtml: `<div class="matrix-bracket"><span>0</span><span>1</span><span>1</span><span>0</span></div>`
+      },
+      Y: {
+        symbol: 'Y', name: 'Pauli-Y (Y)', category: 'basic',
+        color: 'bg-sky-500/20 border-sky-400/70 text-sky-200',
+        desc: 'Rota π alrededor del eje Y, combinando inversión de bit y de fase.',
+        cli: 'Y 0',
+        matrixHtml: `<div class="matrix-bracket"><span>0</span><span>−i</span><span>i</span><span>0</span></div>`
+      },
+      Z: {
+        symbol: 'Z', name: 'Pauli-Z (Z)', category: 'basic',
+        color: 'bg-indigo-500/20 border-indigo-400/70 text-indigo-200',
+        desc: 'Añade una fase de π al estado |1⟩ (inversión de fase: |1⟩ → −|1⟩).',
+        cli: 'Z 0',
+        matrixHtml: `<div class="matrix-bracket"><span>1</span><span>0</span><span>0</span><span>−1</span></div>`
+      },
+      I: {
+        symbol: 'I', name: 'Identity (I)', category: 'basic',
+        color: 'bg-slate-600/25 border-slate-400/60 text-slate-200',
+        desc: 'No modifica el estado del qubit (operador identidad).',
+        cli: 'I 0',
+        matrixHtml: `<div class="matrix-bracket"><span>1</span><span>0</span><span>0</span><span>1</span></div>`
+      },
+      SX: {
+        symbol: '√X', name: 'SX (Raíz de NOT)', category: 'basic',
+        color: 'bg-teal-500/20 border-teal-400/70 text-teal-200',
+        desc: 'Raíz cuadrada de NOT (SX·SX = X); equivale a media rotación sobre el eje X.',
+        cli: 'SX 0',
+        matrixHtml: `<span class="text-slate-400 font-mono text-[11px]">½</span><div class="matrix-bracket"><span>1+i</span><span>1−i</span><span>1−i</span><span>1+i</span></div>`
+      },
+      S: {
+        symbol: 'S', name: 'Fase S (√Z)', category: 'phase',
+        color: 'bg-purple-500/20 border-purple-400/70 text-purple-200',
+        desc: 'Añade una fase de π/2 al estado |1⟩ (raíz cuadrada de Z: diag(1, i)).',
+        cli: 'S 0',
+        matrixHtml: `<div class="matrix-bracket"><span>1</span><span>0</span><span>0</span><span>i</span></div>`
+      },
+      SDG: {
+        symbol: 'S†', name: 'Sdg (S†)', category: 'phase',
+        color: 'bg-purple-500/20 border-purple-400/70 text-purple-200',
+        desc: 'Inversa de S; añade una fase de −π/2 al estado |1⟩ (diag(1, −i)).',
+        cli: 'SDG 0',
+        matrixHtml: `<div class="matrix-bracket"><span>1</span><span>0</span><span>0</span><span>−i</span></div>`
+      },
+      T: {
+        symbol: 'T', name: 'Fase T (π/4)', category: 'phase',
+        color: 'bg-fuchsia-500/20 border-fuchsia-400/70 text-fuchsia-200',
+        desc: 'Añade una fase de π/4 al estado |1⟩ (diag(1, e^(iπ/4))).',
+        cli: 'T 0',
+        matrixHtml: `<div class="matrix-bracket"><span>1</span><span>0</span><span>0</span><span>e<sup>iπ/4</sup></span></div>`
+      },
+      TDG: {
+        symbol: 'T†', name: 'Tdg (T†)', category: 'phase',
+        color: 'bg-fuchsia-500/20 border-fuchsia-400/70 text-fuchsia-200',
+        desc: 'Inversa de T; añade una fase de −π/4 al estado |1⟩ (diag(1, e^(−iπ/4))).',
+        cli: 'TDG 0',
+        matrixHtml: `<div class="matrix-bracket"><span>1</span><span>0</span><span>0</span><span>e<sup>−iπ/4</sup></span></div>`
+      },
+      P: {
+        symbol: 'P(φ)', name: 'Phase P(φ)', category: 'phase', parametric: true, paramName: 'φ', defaultParam: Math.PI / 4,
+        color: 'bg-violet-500/20 border-violet-400/70 text-violet-200',
+        desc: 'Añade una fase arbitraria φ al estado |1⟩: |1⟩ → e^(iφ)|1⟩.',
+        cli: 'P(pi/4) 0',
+        matrixHtml: `<div class="matrix-bracket"><span>1</span><span>0</span><span>0</span><span>e<sup>iφ</sup></span></div>`
+      },
+      RX: {
+        symbol: 'RX', name: 'Rotación RX(θ)', category: 'phase', parametric: true, paramName: 'θ', defaultParam: Math.PI / 2,
+        color: 'bg-pink-500/20 border-pink-400/70 text-pink-200',
+        desc: 'Rota el estado un ángulo θ alrededor del eje X de la esfera de Bloch.',
+        cli: 'RX(pi/2) 0',
+        matrixHtml: `<div class="matrix-bracket"><span>cos(θ/2)</span><span>−i·sen(θ/2)</span><span>−i·sen(θ/2)</span><span>cos(θ/2)</span></div>`
+      },
+      RY: {
+        symbol: 'RY', name: 'Rotación RY(θ)', category: 'phase', parametric: true, paramName: 'θ', defaultParam: Math.PI / 2,
+        color: 'bg-pink-500/20 border-pink-400/70 text-pink-200',
+        desc: 'Rota el estado un ángulo θ alrededor del eje Y de la esfera de Bloch.',
+        cli: 'RY(pi/3) 0',
+        matrixHtml: `<div class="matrix-bracket"><span>cos(θ/2)</span><span>−sen(θ/2)</span><span>sen(θ/2)</span><span>cos(θ/2)</span></div>`
+      },
+      RZ: {
+        symbol: 'RZ', name: 'Rotación RZ(θ)', category: 'phase', parametric: true, paramName: 'θ', defaultParam: Math.PI / 2,
+        color: 'bg-pink-500/20 border-pink-400/70 text-pink-200',
+        desc: 'Rota el estado un ángulo θ alrededor del eje Z de la esfera de Bloch.',
+        cli: 'RZ(pi) 0',
+        matrixHtml: `<div class="matrix-bracket"><span>e<sup>−iθ/2</sup></span><span>0</span><span>0</span><span>e<sup>iθ/2</sup></span></div>`
+      },
+      CNOT: {
+        symbol: 'CNOT', name: 'CNOT (CX)', category: 'multi', multi: true, minQubits: 2,
+        color: 'bg-blue-500/25 border-blue-400/80 text-blue-200',
+        desc: 'Aplica NOT (X) al qubit objetivo solo si el qubit de control está en |1⟩.',
+        cli: 'CNOT 0 1',
+        matrixHtml: `<span class="font-mono text-[11px] text-blue-300">|c, t⟩ → |c, t ⊕ c⟩</span>`
+      },
+      TOFFOLI: {
+        symbol: 'CCX', name: 'Toffoli (CCNOT)', category: 'multi', multi: true, minQubits: 3,
+        color: 'bg-indigo-500/25 border-indigo-400/80 text-indigo-200',
+        desc: 'Aplica NOT al objetivo solo si ambos qubits de control están en |1⟩.',
+        cli: 'TOFFOLI 0 1 2',
+        matrixHtml: `<span class="font-mono text-[11px] text-indigo-300">|c₁,c₂,t⟩ → |c₁,c₂,t⊕(c₁·c₂)⟩</span>`
+      },
+      SWAP: {
+        symbol: 'SWAP', name: 'SWAP', category: 'multi', multi: true, minQubits: 2,
+        color: 'bg-cyan-500/25 border-cyan-400/80 text-cyan-200',
+        desc: 'Intercambia completamente los estados cuánticos de dos qubits.',
+        cli: 'SWAP 0 1',
+        matrixHtml: `<span class="font-mono text-[11px] text-cyan-300">|a, b⟩ → |b, a⟩</span>`
+      },
+      M: {
+        symbol: 'M', name: 'Medición Proyectiva (M)', category: 'measure',
+        color: 'bg-emerald-500/20 border-emerald-400/80 text-emerald-200',
+        desc: 'Mide el qubit en la base computacional {|0⟩,|1⟩}, colapsando el vector y guardando en m_k.',
+        cli: 'M 0 -> m0',
+        matrixHtml: `<span class="font-mono text-[11px] text-emerald-300">P(b) = ⟨ψ|Π<sub>b</sub>|ψ⟩</span>`
+      },
+      IF_X: {
+        symbol: 'IF·X', name: 'Control Clásico IF m_k → X', category: 'measure', classicalControl: 'X',
+        color: 'bg-amber-500/20 border-amber-400/80 text-amber-200',
+        desc: 'Dispara dinámicamente la compuerta X en tiempo real solo si el bit clásico m_k = 1.',
+        cli: 'IF m1 X 2',
+        matrixHtml: `<span class="font-mono text-[11px] text-amber-300">si m<sub>k</sub>=1 ⇒ X</span>`
+      },
+      IF_Z: {
+        symbol: 'IF·Z', name: 'Control Clásico IF m_k → Z', category: 'measure', classicalControl: 'Z',
+        color: 'bg-amber-500/20 border-amber-400/80 text-amber-200',
+        desc: 'Dispara dinámicamente la compuerta Z en tiempo real solo si el bit clásico m_k = 1.',
+        cli: 'IF m0 Z 2',
+        matrixHtml: `<span class="font-mono text-[11px] text-amber-300">si m<sub>k</sub>=1 ⇒ Z</span>`
+      }
+    };
+
+    const PALETTE_GROUPS = [
+      { id: 'basic', label: 'Pauli y Básicas', gates: ['H', 'X', 'Y', 'Z', 'I', 'SX'] },
+      { id: 'phase', label: 'Fase y Rotación', gates: ['S', 'SDG', 'T', 'TDG', 'P', 'RX', 'RY', 'RZ'] },
+      { id: 'multi', label: 'Multi-Qubit', gates: ['CNOT', 'TOFFOLI', 'SWAP'] },
+      { id: 'measure', label: 'Medición y Control Clásico', gates: ['M', 'IF_X', 'IF_Z'] }
+    ];
+
+    /* ------------------------------------------------------------------------
+     * 2. ESTADO GLOBAL DE LA APLICACIÓN
+     * ---------------------------------------------------------------------- */
+    const state = {
+      numQubits: 3,
+      numCbits: 2,
+      numSteps: 9,
+      ops: [],              // Lista de operaciones cuánticas
+      zones: [],            // Regiones etiquetadas para presets (ej. Oráculo U_f)
+      activePreset: 'teleport',
+      teleportTheta: 1.15,
+      teleportPhi: 0.85,
+      deutschOracle: 'b0',
+      selectedTool: 'H',
+      currentStep: 9,       // Cursor del depurador paso a paso (0..numSteps)
+      snapshots: [],        // snapshots[s] = estado tras s capas ejecutadas
+      lastShots: null,      // Resultados de la última corrida de N shots
+      vizMode: 'state',     // 'state' | 'shots'
+      consoleTab: 'cli',    // 'cli' | 'script'
+      cmdHistory: [],
+      cmdHistoryIdx: -1,
+      modalContext: null,   // Estado del modal de edición/creación
+      blochCamera: { yaw: 0.62, pitch: 0.36 }, // Ángulo de cámara 3D de las esferas de Bloch
+      opCounter: 1
+    };
+
+    /* ------------------------------------------------------------------------
+     * 3. UTILIDADES DE ÁNGULOS Y EXPRESIONES MATEMÁTICAS SEGURAS
+     * ---------------------------------------------------------------------- */
+    function parseAngleExpr(raw) {
+      if (typeof raw === 'number' && !isNaN(raw)) return raw;
+      let str = String(raw || '0').trim().toLowerCase()
+        .replace(/π/g, 'pi')
+        .replace(/\s+/g, '');
+      if (!str) return 0;
+
+      // Soporte para grados (ej. 90deg)
+      let isDeg = false;
+      if (str.endsWith('deg')) {
+        isDeg = true;
+        str = str.slice(0, -3);
+      }
+
+      // Convertir multiplicación implícita: 2pi -> 2*pi, -pi -> -1*pi
+      str = str.replace(/(\d)(pi)/g, '$1*$2').replace(/(pi)(\d)/g, '$1*$2');
+      str = str.replace(/pi/g, String(Math.PI));
+
+      // Evaluador aritmético seguro (solo números, +, -, *, /, paréntesis)
+      if (!/^[0-9+\-*/().e]+$/.test(str)) {
+        throw new Error(`Expresión de ángulo inválida: "${raw}"`);
+      }
+
+      const tokens = str.match(/(\d+\.?\d*|\.\d+|[+\-*/()])/g);
+      if (!tokens) throw new Error(`No se pudo interpretar el ángulo: "${raw}"`);
+
+      let pos = 0;
+      function parseExpr() {
+        let left = parseTerm();
+        while (pos < tokens.length && (tokens[pos] === '+' || tokens[pos] === '-')) {
+          const op = tokens[pos++];
+          const right = parseTerm();
+          left = op === '+' ? left + right : left - right;
+        }
+        return left;
+      }
+      function parseTerm() {
+        let left = parseFactor();
+        while (pos < tokens.length && (tokens[pos] === '*' || tokens[pos] === '/')) {
+          const op = tokens[pos++];
+          const right = parseFactor();
+          if (op === '/' && Math.abs(right) < 1e-12) throw new Error('División por cero en ángulo');
+          left = op === '*' ? left * right : left / right;
+        }
+        return left;
+      }
+      function parseFactor() {
+        if (tokens[pos] === '+') { pos++; return parseFactor(); }
+        if (tokens[pos] === '-') { pos++; return -parseFactor(); }
+        if (tokens[pos] === '(') {
+          pos++;
+          const val = parseExpr();
+          if (tokens[pos] !== ')') throw new Error('Paréntesis sin cerrar en ángulo');
+          pos++;
+          return val;
+        }
+        const num = parseFloat(tokens[pos++]);
+        if (isNaN(num)) throw new Error(`Token inesperado en ángulo: "${raw}"`);
+        return num;
+      }
+
+      const value = parseExpr();
+      if (pos !== tokens.length || !isFinite(value)) {
+        throw new Error(`Ángulo mal formado: "${raw}"`);
+      }
+      return isDeg ? (value * Math.PI) / 180 : value;
+    }
+
+    function formatAngleShort(rad) {
+      if (Math.abs(rad) < 1e-6) return '0';
+      const multiples = [
+        { val: Math.PI, label: 'π' },
+        { val: -Math.PI, label: '-π' },
+        { val: Math.PI / 2, label: 'π/2' },
+        { val: -Math.PI / 2, label: '-π/2' },
+        { val: Math.PI / 4, label: 'π/4' },
+        { val: -Math.PI / 4, label: '-π/4' },
+        { val: (3 * Math.PI) / 4, label: '3π/4' },
+        { val: (-3 * Math.PI) / 4, label: '-3π/4' },
+        { val: Math.PI / 3, label: 'π/3' },
+        { val: -Math.PI / 3, label: '-π/3' },
+        { val: (2 * Math.PI) / 3, label: '2π/3' },
+        { val: Math.PI / 6, label: 'π/6' },
+        { val: 2 * Math.PI, label: '2π' }
+      ];
+      for (const m of multiples) {
+        if (Math.abs(rad - m.val) < 1e-3) return m.label;
+      }
+      return rad.toFixed(2);
+    }
+
+    function formatAngleCLI(rad) {
+      return formatAngleShort(rad).replace(/π/g, 'pi');
+    }
+
+    /* ------------------------------------------------------------------------
+     * 4. MOTOR EXACTO DE SIMULACIÓN CUÁNTICA (VECTOR DE ESTADO 2^n)
+     * ---------------------------------------------------------------------- */
+    const QuantumEngine = {
+      createZeroState(n) {
+        const dim = 1 << n;
+        const re = new Float64Array(dim);
+        const im = new Float64Array(dim);
+        re[0] = 1.0;
+        return { re, im };
+      },
+
+      cloneState(st) {
+        return { re: new Float64Array(st.re), im: new Float64Array(st.im) };
+      },
+
+      /**
+       * Retorna la matriz unitaria 2x2 exacta como 4 números complejos [u00r, u00i, u01r, u01i, u10r, u10i, u11r, u11i]
+       */
+      getSingleQubitMatrix(type, param = 0) {
+        const c = Math.cos(param / 2);
+        const s = Math.sin(param / 2);
+        switch (type) {
+          case 'I':   return [1, 0, 0, 0, 0, 0, 1, 0];
+          case 'H':   return [SQRT1_2, 0, SQRT1_2, 0, SQRT1_2, 0, -SQRT1_2, 0];
+          case 'X':   return [0, 0, 1, 0, 1, 0, 0, 0];
+          case 'Y':   return [0, 0, 0, -1, 0, 1, 0, 0];
+          case 'Z':   return [1, 0, 0, 0, 0, 0, -1, 0];
+          case 'S':   return [1, 0, 0, 0, 0, 0, 0, 1];
+          case 'SDG': return [1, 0, 0, 0, 0, 0, 0, -1];
+          case 'T':   return [1, 0, 0, 0, 0, 0, SQRT1_2, SQRT1_2];
+          case 'TDG': return [1, 0, 0, 0, 0, 0, SQRT1_2, -SQRT1_2];
+          case 'SX':  return [0.5, 0.5, 0.5, -0.5, 0.5, -0.5, 0.5, 0.5];
+          case 'P':   return [1, 0, 0, 0, 0, 0, Math.cos(param), Math.sin(param)];
+          case 'RX':  return [c, 0, 0, -s, 0, -s, c, 0];
+          case 'RY':  return [c, 0, -s, 0, s, 0, c, 0];
+          case 'RZ':  return [c, -s, 0, 0, 0, 0, c, s];
+          default:    return [1, 0, 0, 0, 0, 0, 1, 0];
+        }
+      },
+
+      applySingleQubit(st, n, target, u) {
+        const dim = 1 << n;
+        const mask = 1 << (n - 1 - target);
+        const { re, im } = st;
+        const [u00r, u00i, u01r, u01i, u10r, u10i, u11r, u11i] = u;
+
+        for (let i = 0; i < dim; i++) {
+          if ((i & mask) === 0) {
+            const j = i | mask;
+            const a0r = re[i], a0i = im[i];
+            const a1r = re[j], a1i = im[j];
+
+            re[i] = (u00r * a0r - u00i * a0i) + (u01r * a1r - u01i * a1i);
+            im[i] = (u00r * a0i + u00i * a0r) + (u01r * a1i + u01i * a1r);
+
+            re[j] = (u10r * a0r - u10i * a0i) + (u11r * a1r - u11i * a1i);
+            im[j] = (u10r * a0i + u10i * a0r) + (u11r * a1i + u11i * a1r);
+          }
+        }
+      },
+
+      applyCNOT(st, n, control, target) {
+        const dim = 1 << n;
+        const maskC = 1 << (n - 1 - control);
+        const maskT = 1 << (n - 1 - target);
+        const { re, im } = st;
+
+        for (let i = 0; i < dim; i++) {
+          if ((i & maskC) !== 0 && (i & maskT) === 0) {
+            const j = i | maskT;
+            const tr = re[i], ti = im[i];
+            re[i] = re[j]; im[i] = im[j];
+            re[j] = tr;    im[j] = ti;
+          }
+        }
+      },
+
+      applyToffoli(st, n, c1, c2, target) {
+        const dim = 1 << n;
+        const maskC1 = 1 << (n - 1 - c1);
+        const maskC2 = 1 << (n - 1 - c2);
+        const maskT = 1 << (n - 1 - target);
+        const { re, im } = st;
+
+        for (let i = 0; i < dim; i++) {
+          if ((i & maskC1) !== 0 && (i & maskC2) !== 0 && (i & maskT) === 0) {
+            const j = i | maskT;
+            const tr = re[i], ti = im[i];
+            re[i] = re[j]; im[i] = im[j];
+            re[j] = tr;    im[j] = ti;
+          }
+        }
+      },
+
+      applySWAP(st, n, qa, qb) {
+        const dim = 1 << n;
+        const maskA = 1 << (n - 1 - qa);
+        const maskB = 1 << (n - 1 - qb);
+        const { re, im } = st;
+
+        for (let i = 0; i < dim; i++) {
+          if ((i & maskA) === 0 && (i & maskB) !== 0) {
+            const j = (i | maskA) & ~maskB;
+            const tr = re[i], ti = im[i];
+            re[i] = re[j]; im[i] = im[j];
+            re[j] = tr;    im[j] = ti;
+          }
+        }
+      },
+
+      /**
+       * Medición proyectiva real en base computacional {|0⟩, |1⟩} con colapso y renormalización
+       */
+      applyMeasurement(st, n, target) {
+        const dim = 1 << n;
+        const mask = 1 << (n - 1 - target);
+        const { re, im } = st;
+
+        let p0 = 0;
+        for (let i = 0; i < dim; i++) {
+          if ((i & mask) === 0) {
+            p0 += re[i] * re[i] + im[i] * im[i];
+          }
+        }
+        p0 = Math.max(0, Math.min(1, p0));
+        const p1 = 1 - p0;
+        const outcome = Math.random() < p0 ? 0 : 1;
+        const norm = Math.sqrt(outcome === 0 ? p0 : p1);
+
+        for (let i = 0; i < dim; i++) {
+          const bit = (i & mask) !== 0 ? 1 : 0;
+          if (bit === outcome && norm > 1e-12) {
+            re[i] /= norm;
+            im[i] /= norm;
+          } else {
+            re[i] = 0;
+            im[i] = 0;
+          }
+        }
+        return { outcome, p0, p1 };
+      },
+
+      /**
+       * Ejecuta todo el circuito capa por capa y guarda historial de snapshots para depuración
+       */
+      simulateTimeline(n, numCbits, numSteps, ops) {
+        const snapshots = [];
+        let st = this.createZeroState(n);
+        let cbits = new Array(numCbits).fill(0);
+        let measuredFlags = new Array(numCbits).fill(false);
+
+        snapshots.push({
+          step: 0,
+          st: this.cloneState(st),
+          cbits: [...cbits],
+          measuredFlags: [...measuredFlags],
+          events: []
+        });
+
+        for (let s = 0; s < numSteps; s++) {
+          const layerOps = ops
+            .filter(o => o.step === s)
+            .sort((a, b) => (a.targets[0] ?? 0) - (b.targets[0] ?? 0));
+          const events = [];
+
+          for (const op of layerOps) {
+            // Evaluar control clásico dinámico (IF m_k -> GATE)
+            if (op.condBit !== null && op.condBit !== undefined) {
+              const bitVal = cbits[op.condBit] ?? 0;
+              if (bitVal === 1) {
+                const u = this.getSingleQubitMatrix(op.type, op.param || 0);
+                this.applySingleQubit(st, n, op.targets[0], u);
+                events.push({
+                  kind: 'ctrl-fired',
+                  opId: op.id,
+                  text: `IF m${op.condBit}=1 ⇒ DISPARADA ${op.type} en q${op.targets[0]}`
+                });
+              } else {
+                events.push({
+                  kind: 'ctrl-skipped',
+                  opId: op.id,
+                  text: `IF m${op.condBit}=0 ⇒ OMITIDA ${op.type} en q${op.targets[0]}`
+                });
+              }
+              continue;
+            }
+
+            if (op.type === 'M') {
+              const res = this.applyMeasurement(st, n, op.targets[0]);
+              const cb = Math.min(op.cbit ?? 0, numCbits - 1);
+              cbits[cb] = res.outcome;
+              measuredFlags[cb] = true;
+              events.push({
+                kind: 'measure',
+                opId: op.id,
+                qubit: op.targets[0],
+                cbit: cb,
+                outcome: res.outcome,
+                prob: res.outcome === 0 ? res.p0 : res.p1,
+                text: `Medición q${op.targets[0]} → m${cb} = ${res.outcome} (P(|${res.outcome}⟩) = ${((res.outcome === 0 ? res.p0 : res.p1) * 100).toFixed(1)}%)`
+              });
+            } else if (op.type === 'CNOT') {
+              this.applyCNOT(st, n, op.controls[0], op.targets[0]);
+              events.push({ kind: 'gate', opId: op.id, text: `CNOT q${op.controls[0]} → q${op.targets[0]}` });
+            } else if (op.type === 'TOFFOLI') {
+              this.applyToffoli(st, n, op.controls[0], op.controls[1], op.targets[0]);
+              events.push({ kind: 'gate', opId: op.id, text: `TOFFOLI (q${op.controls[0]}, q${op.controls[1]}) → q${op.targets[0]}` });
+            } else if (op.type === 'SWAP') {
+              this.applySWAP(st, n, op.targets[0], op.targets[1]);
+              events.push({ kind: 'gate', opId: op.id, text: `SWAP q${op.targets[0]} ↔ q${op.targets[1]}` });
+            } else {
+              const u = this.getSingleQubitMatrix(op.type, op.param || 0);
+              this.applySingleQubit(st, n, op.targets[0], u);
+              const pStr = GATE_DEFS[op.type]?.parametric ? `(${formatAngleShort(op.param || 0)})` : '';
+              events.push({ kind: 'gate', opId: op.id, text: `${op.type}${pStr} en q${op.targets[0]}` });
+            }
+          }
+
+          snapshots.push({
+            step: s + 1,
+            st: this.cloneState(st),
+            cbits: [...cbits],
+            measuredFlags: [...measuredFlags],
+            events
+          });
+        }
+
+        return snapshots;
+      },
+
+      /**
+       * Ejecuta N disparos (shots) independientes, midiendo todos los qubits al final
+       */
+      runMultiShots(n, numCbits, numSteps, ops, shots = 1024) {
+        const counts = new Map();
+        const cbitCounts = new Map();
+        const dim = 1 << n;
+
+        // Pre-agrupar operaciones por capa para máxima velocidad
+        const layers = Array.from({ length: numSteps }, (_, s) =>
+          ops.filter(o => o.step === s)
+        );
+
+        for (let run = 0; run < shots; run++) {
+          const st = this.createZeroState(n);
+          const cbits = new Array(numCbits).fill(0);
+
+          for (let s = 0; s < numSteps; s++) {
+            const layerOps = layers[s];
+            for (let k = 0; k < layerOps.length; k++) {
+              const op = layerOps[k];
+              if (op.condBit !== null && op.condBit !== undefined) {
+                if ((cbits[op.condBit] ?? 0) === 1) {
+                  this.applySingleQubit(st, n, op.targets[0], this.getSingleQubitMatrix(op.type, op.param || 0));
+                }
+                continue;
+              }
+              if (op.type === 'M') {
+                const res = this.applyMeasurement(st, n, op.targets[0]);
+                const cb = Math.min(op.cbit ?? 0, numCbits - 1);
+                cbits[cb] = res.outcome;
+              } else if (op.type === 'CNOT') {
+                this.applyCNOT(st, n, op.controls[0], op.targets[0]);
+              } else if (op.type === 'TOFFOLI') {
+                this.applyToffoli(st, n, op.controls[0], op.controls[1], op.targets[0]);
+              } else if (op.type === 'SWAP') {
+                this.applySWAP(st, n, op.targets[0], op.targets[1]);
+              } else {
+                this.applySingleQubit(st, n, op.targets[0], this.getSingleQubitMatrix(op.type, op.param || 0));
+              }
+            }
+          }
+
+          // Muestrear el estado cuántico final según distribución de Born
+          let r = Math.random();
+          let sampledIdx = dim - 1;
+          for (let i = 0; i < dim; i++) {
+            const p = st.re[i] * st.re[i] + st.im[i] * st.im[i];
+            r -= p;
+            if (r <= 1e-12) {
+              sampledIdx = i;
+              break;
+            }
+          }
+          const bitstr = sampledIdx.toString(2).padStart(n, '0');
+          counts.set(bitstr, (counts.get(bitstr) || 0) + 1);
+
+          const cstr = cbits.join('');
+          cbitCounts.set(cstr, (cbitCounts.get(cstr) || 0) + 1);
+        }
+
+        return { shots, counts, cbitCounts };
+      },
+
+      /**
+       * Calcula el vector de Bloch (rx, ry, rz) y pureza Tr(ρ^2) mediante matriz de densidad reducida
+       */
+      getBlochVector(st, n, qubit) {
+        const dim = 1 << n;
+        const mask = 1 << (n - 1 - qubit);
+        const { re, im } = st;
+
+        let rho00 = 0;
+        let rho11 = 0;
+        let rho01r = 0;
+        let rho01i = 0;
+
+        for (let i = 0; i < dim; i++) {
+          if ((i & mask) === 0) {
+            const j = i | mask;
+            const a0r = re[i], a0i = im[i];
+            const a1r = re[j], a1i = im[j];
+            rho00 += a0r * a0r + a0i * a0i;
+            rho11 += a1r * a1r + a1i * a1i;
+            // rho01 = psi_0 * conj(psi_1) = (a0r + i a0i)(a1r - i a1i)
+            rho01r += a0r * a1r + a0i * a1i;
+            rho01i += a0i * a1r - a0r * a1i;
+          }
+        }
+
+        const rx = 2 * rho01r;
+        const ry = -2 * rho01i; // Verificado: |+i⟩ tiene ry = +1
+        const rz = rho00 - rho11;
+        const radius = Math.sqrt(rx * rx + ry * ry + rz * rz);
+        const purity = Math.min(1, Math.max(0.5, (1 + radius * radius) / 2));
+        return { rx, ry, rz, radius, purity, p0: rho00, p1: rho11 };
+      }
+    };
+
+    /* ------------------------------------------------------------------------
+     * 5. PRESETS DE ALGORITMOS (TELEPORTACIÓN Y DEUTSCH)
+     * ---------------------------------------------------------------------- */
+    function makeOp(step, type, targets, opts = {}) {
+      return {
+        id: 'op_' + (state.opCounter++),
+        step,
+        type,
+        targets: Array.isArray(targets) ? targets : [targets],
+        controls: opts.controls || [],
+        param: opts.param ?? (GATE_DEFS[type]?.defaultParam ?? 0),
+        cbit: opts.cbit ?? null,
+        condBit: opts.condBit ?? null
+      };
+    }
+
+    function buildTeleportationCircuit(theta, phi) {
+      state.activePreset = 'teleport';
+      state.teleportTheta = theta;
+      state.teleportPhi = phi;
+      state.numQubits = 3;
+      state.numCbits = 2;
+      state.numSteps = 9;
+      state.ops = [
+        // Zona Preparación |ψ⟩ en q0 (Capas 0 y 1)
+        makeOp(0, 'RY', [0], { param: theta }),
+        makeOp(1, 'RZ', [0], { param: phi }),
+        // Protocolo Central de Teleportación: exactamente 2 H y 2 CNOT en 4 capas (Capas 2..5)
+        makeOp(2, 'H', [1]),                                  // Capa 1 del protocolo: Par de Bell
+        makeOp(3, 'CNOT', [2], { controls: [1] }),            // Capa 2: Entrelazamiento q1-q2
+        makeOp(4, 'CNOT', [1], { controls: [0] }),            // Capa 3: Base de Bell
+        makeOp(5, 'H', [0]),                                  // Capa 4: Base de Bell
+        // Medición de q0 -> m0 y q1 -> m1 (Capa 6)
+        makeOp(6, 'M', [0], { cbit: 0 }),
+        makeOp(6, 'M', [1], { cbit: 1 }),
+        // Control clásico dinámico en tiempo real sobre q2 (Capas 7 y 8)
+        makeOp(7, 'X', [2], { condBit: 1 }),                  // IF m1 -> X en q2
+        makeOp(8, 'Z', [2], { condBit: 0 })                   // IF m0 -> Z en q2
+      ];
+      state.zones = [
+        { start: 0, end: 1, label: 'Preparación |ψ⟩', color: 'border-purple-400/50 text-purple-300 bg-purple-500/10' },
+        { start: 2, end: 5, label: 'Protocolo Teleportación (4 capas)', color: 'border-cyan-400/50 text-cyan-300 bg-cyan-500/10' },
+        { start: 6, end: 6, label: 'Medición', color: 'border-emerald-400/50 text-emerald-300 bg-emerald-500/10' },
+        { start: 7, end: 8, label: 'Control Clásico', color: 'border-amber-400/50 text-amber-300 bg-amber-500/10' }
+      ];
+    }
+
+    function buildDeutschCircuit(oracleKey) {
+      state.activePreset = 'deutsch';
+      state.deutschOracle = oracleKey;
+      state.numQubits = 2;
+      state.numCbits = 1;
+
+      const ops = [
+        // Inicializar q1 en |1⟩ -> |01⟩
+        makeOp(0, 'X', [1]),
+        // Superposición H en q0 y q1 -> |+⟩|-⟩
+        makeOp(1, 'H', [0]),
+        makeOp(1, 'H', [1])
+      ];
+
+      let oracleEndStep = 2;
+      let oracleLabel = 'Oráculo U_f';
+      if (oracleKey === 'c0') {
+        ops.push(makeOp(2, 'I', [0]), makeOp(2, 'I', [1]));
+        oracleEndStep = 2;
+        oracleLabel = 'Oráculo U_f: f(x)=0';
+      } else if (oracleKey === 'c1') {
+        ops.push(makeOp(2, 'X', [1]));
+        oracleEndStep = 2;
+        oracleLabel = 'Oráculo U_f: f(x)=1';
+      } else if (oracleKey === 'b0') {
+        ops.push(makeOp(2, 'CNOT', [1], { controls: [0] }));
+        oracleEndStep = 2;
+        oracleLabel = 'Oráculo U_f: f(x)=x';
+      } else if (oracleKey === 'b1') {
+        ops.push(makeOp(2, 'CNOT', [1], { controls: [0] }));
+        ops.push(makeOp(3, 'X', [1]));
+        oracleEndStep = 3;
+        oracleLabel = 'Oráculo U_f: f(x)=¬x';
+      }
+
+      const hFinalStep = oracleEndStep + 1;
+      const mStep = oracleEndStep + 2;
+      ops.push(makeOp(hFinalStep, 'H', [0]));
+      ops.push(makeOp(mStep, 'M', [0], { cbit: 0 }));
+
+      state.numSteps = mStep + 1;
+      state.ops = ops;
+      state.zones = [
+        { start: 0, end: 1, label: 'Prep |+⟩|−⟩', color: 'border-cyan-400/40 text-cyan-300 bg-cyan-500/10' },
+        { start: 2, end: oracleEndStep, label: oracleLabel, color: 'border-purple-400/60 text-purple-200 bg-purple-500/15' },
+        { start: hFinalStep, end: mStep, label: 'Interferencia y Med.', color: 'border-emerald-400/50 text-emerald-300 bg-emerald-500/10' }
+      ];
+    }
+
+    function loadPreset(presetName, silent = false) {
+      state.lastShots = null;
+      state.vizMode = 'state';
+      if (presetName === 'teleport') {
+        buildTeleportationCircuit(state.teleportTheta, state.teleportPhi);
+        if (!silent) logTerminal('INFO', 'Cargado protocolo de Teleportación Cuántica (3 qubits, 2 bits clásicos, 4 capas cuánticas + control clásico dinámico).');
+      } else if (presetName.startsWith('deutsch_')) {
+        const key = presetName.replace('deutsch_', '');
+        buildDeutschCircuit(key);
+        const names = { c0: 'Constante f(x)=0', c1: 'Constante f(x)=1', b0: 'Balanceada f(x)=x', b1: 'Balanceada f(x)=¬x' };
+        if (!silent) logTerminal('INFO', `Cargado Algoritmo de Deutsch con oráculo U_f: ${names[key] || key}.`);
+      } else {
+        state.activePreset = 'blank';
+        state.numQubits = 3;
+        state.numCbits = 2;
+        state.numSteps = 8;
+        state.ops = [];
+        state.zones = [];
+        if (!silent) logTerminal('INFO', 'Circuito libre inicializado (3 qubits, 2 registros clásicos).');
+      }
+      recomputeSimulation(true);
+      renderAll();
+    }
+
+    /* ------------------------------------------------------------------------
+     * 6. SINCRONIZACIÓN BIDIRECCIONAL CIRCUITO <-> SCRIPT CLI
+     * ---------------------------------------------------------------------- */
+    function serializeCircuitToScript() {
+      const lines = [
+        `# Script Q-Lab Console (${state.numQubits} qubits, ${state.numCbits} bits clásicos)`,
+        `QUBITS ${state.numQubits}`,
+        `CBITS ${state.numCbits}`
+      ];
+
+      for (let s = 0; s < state.numSteps; s++) {
+        const layerOps = state.ops
+          .filter(o => o.step === s)
+          .sort((a, b) => (a.targets[0] ?? 0) - (b.targets[0] ?? 0));
+        for (const op of layerOps) {
+          if (op.condBit !== null && op.condBit !== undefined) {
+            const p = GATE_DEFS[op.type]?.parametric ? `(${formatAngleCLI(op.param)})` : '';
+            lines.push(`IF m${op.condBit} ${op.type}${p} ${op.targets[0]}`);
+          } else if (op.type === 'M') {
+            lines.push(`M ${op.targets[0]} -> m${op.cbit ?? 0}`);
+          } else if (op.type === 'CNOT') {
+            lines.push(`CNOT ${op.controls[0]} ${op.targets[0]}`);
+          } else if (op.type === 'TOFFOLI') {
+            lines.push(`TOFFOLI ${op.controls[0]} ${op.controls[1]} ${op.targets[0]}`);
+          } else if (op.type === 'SWAP') {
+            lines.push(`SWAP ${op.targets[0]} ${op.targets[1]}`);
+          } else if (GATE_DEFS[op.type]?.parametric) {
+            lines.push(`${op.type}(${formatAngleCLI(op.param)}) ${op.targets[0]}`);
+          } else {
+            lines.push(`${op.type} ${op.targets[0]}`);
+          }
+        }
+      }
+      return lines.join('\n');
+    }
+
+    /**
+     * Encuentra la capa más temprana disponible (ASAP) para una lista de qubits implicados
+     */
+    function findNextAvailableStep(involvedQubits, afterClassicalBit = null) {
+      let minStep = 0;
+      for (const op of state.ops) {
+        const opQubits = [...op.controls, ...op.targets];
+        const touchesQubit = opQubits.some(q => involvedQubits.includes(q));
+        const writesNeededCbit = (afterClassicalBit !== null && op.type === 'M' && op.cbit === afterClassicalBit);
+        if (touchesQubit || writesNeededCbit) {
+          minStep = Math.max(minStep, op.step + 1);
+        }
+      }
+      if (minStep >= state.numSteps) {
+        state.numSteps = minStep + 1;
+      }
+      return minStep;
+    }
+
+    function validateQubitIdx(q, label = 'qubit') {
+      if (!Number.isInteger(q) || q < 0 || q >= state.numQubits) {
+        throw new Error(`Índice de ${label} inválido (${q}). Rango permitido: 0 a ${state.numQubits - 1}.`);
+      }
+    }
+
+    function addOperationFromCLI(line, silent = false) {
+      const trimmed = line.trim();
+      if (!trimmed || trimmed.startsWith('#') || trimmed.startsWith('//')) return false;
+
+      // Comandos de sistema
+      const upper = trimmed.toUpperCase();
+      if (upper === 'HELP' || upper === '?') {
+        showHelpInTerminal();
+        return false;
+      }
+      if (upper === 'CLEAR') {
+        state.ops = [];
+        state.zones = [];
+        state.activePreset = 'blank';
+        state.lastShots = null;
+        if (!silent) logTerminal('OK', 'Circuito limpiado.');
+        return true;
+      }
+      if (upper === 'RUN') {
+        runFull(true);
+        return false;
+      }
+      if (upper === 'STEP') {
+        nextStep();
+        return false;
+      }
+      if (upper === 'RESET') {
+        resetStep();
+        return false;
+      }
+      if (upper === 'LIST') {
+        logTerminal('INFO', '--- Script actual ---\n' + serializeCircuitToScript());
+        return false;
+      }
+
+      // SHOTS N
+      let m = trimmed.match(/^SHOTS\s+(\d+)$/i);
+      if (m) {
+        const nShots = Math.min(10000, Math.max(1, parseInt(m[1], 10)));
+        runShots(nShots);
+        return false;
+      }
+
+      // LOAD preset
+      m = trimmed.match(/^LOAD\s+([a-z0-9_]+)$/i);
+      if (m) {
+        const p = m[1].toLowerCase();
+        if (['teleport', 'deutsch_c0', 'deutsch_c1', 'deutsch_b0', 'deutsch_b1', 'blank'].includes(p)) {
+          loadPreset(p);
+          return false;
+        }
+        throw new Error(`Preset desconocido "${p}". Usa: teleport, deutsch_c0, deutsch_c1, deutsch_b0, deutsch_b1, blank.`);
+      }
+
+      // QUBITS N
+      m = trimmed.match(/^QUBITS\s+(\d+)$/i);
+      if (m) {
+        const nq = parseInt(m[1], 10);
+        if (nq < 1 || nq > 5) throw new Error('El número de qubits debe estar entre 1 y 5.');
+        state.numQubits = nq;
+        state.ops = state.ops.filter(o => [...o.controls, ...o.targets].every(q => q < nq));
+        state.zones = [];
+        state.activePreset = 'blank';
+        if (!silent) logTerminal('OK', `Número de qubits establecido en ${nq}.`);
+        return true;
+      }
+
+      // CBITS N
+      m = trimmed.match(/^CBITS\s+(\d+)$/i);
+      if (m) {
+        const nc = parseInt(m[1], 10);
+        if (nc < 1 || nc > 5) throw new Error('El número de registros clásicos debe estar entre 1 y 5.');
+        state.numCbits = nc;
+        if (!silent) logTerminal('OK', `Registros clásicos establecidos en ${nc}.`);
+        return true;
+      }
+
+      // Control clásico dinámico: IF m1 X 2 | IF m0 -> Z 2 | IF c1 RX(pi/2) 2
+      m = trimmed.match(/^IF\s+[mc]?(\d+)\s*(?:->\s*)?([A-Z]+)(?:\(([^)]+)\))?\s+q?(\d+)$/i);
+      if (m) {
+        const cb = parseInt(m[1], 10);
+        const gateName = m[2].toUpperCase();
+        const angleRaw = m[3];
+        const target = parseInt(m[4], 10);
+        if (cb < 0 || cb >= 5) throw new Error(`Bit clásico inválido m${cb}.`);
+        if (cb >= state.numCbits) state.numCbits = cb + 1;
+        validateQubitIdx(target, 'objetivo');
+        if (!GATE_DEFS[gateName] || GATE_DEFS[gateName].multi || gateName === 'M') {
+          throw new Error(`Compuerta no soportada en IF: "${gateName}". Usa X, Z, H, Y, S, T, RX, RY, RZ, P.`);
+        }
+        const param = GATE_DEFS[gateName].parametric ? parseAngleExpr(angleRaw ?? 'pi/2') : 0;
+        const step = findNextAvailableStep([target], cb);
+        state.ops.push(makeOp(step, gateName, [target], { param, condBit: cb }));
+        state.zones = [];
+        if (!silent) logTerminal('OK', `Añadida compuerta controlada clásicamente: IF m${cb} → ${gateName} en q${target} (capa ${step}).`);
+        return true;
+      }
+
+      // Medición: M 0 -> m0 | M 0 m0 | M 0
+      m = trimmed.match(/^M(?:EASURE)?\s+q?(\d+)(?:\s*(?:->\s*)?[mc]?(\d+))?$/i);
+      if (m) {
+        const q = parseInt(m[1], 10);
+        const cb = m[2] !== undefined ? parseInt(m[2], 10) : Math.min(q, state.numCbits - 1);
+        validateQubitIdx(q);
+        if (cb < 0 || cb >= 5) throw new Error(`Registro clásico m${cb} fuera de rango (0..4).`);
+        if (cb >= state.numCbits) state.numCbits = cb + 1;
+        const step = findNextAvailableStep([q]);
+        state.ops.push(makeOp(step, 'M', [q], { cbit: cb }));
+        state.zones = [];
+        if (!silent) logTerminal('OK', `Añadida medición M q${q} → m${cb} (capa ${step}).`);
+        return true;
+      }
+
+      // CNOT / CX
+      m = trimmed.match(/^(?:CNOT|CX)\s+q?(\d+)\s+q?(\d+)$/i);
+      if (m) {
+        const c = parseInt(m[1], 10);
+        const t = parseInt(m[2], 10);
+        validateQubitIdx(c, 'control');
+        validateQubitIdx(t, 'objetivo');
+        if (c === t) throw new Error('Control y objetivo de CNOT deben ser qubits distintos.');
+        const step = findNextAvailableStep([c, t]);
+        state.ops.push(makeOp(step, 'CNOT', [t], { controls: [c] }));
+        state.zones = [];
+        if (!silent) logTerminal('OK', `Añadida CNOT control q${c} → objetivo q${t} (capa ${step}).`);
+        return true;
+      }
+
+      // TOFFOLI / CCX / CCNOT
+      m = trimmed.match(/^(?:TOFFOLI|CCX|CCNOT)\s+q?(\d+)\s+q?(\d+)\s+q?(\d+)$/i);
+      if (m) {
+        const c1 = parseInt(m[1], 10);
+        const c2 = parseInt(m[2], 10);
+        const t = parseInt(m[3], 10);
+        validateQubitIdx(c1, 'control 1');
+        validateQubitIdx(c2, 'control 2');
+        validateQubitIdx(t, 'objetivo');
+        if (new Set([c1, c2, t]).size !== 3) throw new Error('Toffoli requiere 3 qubits distintos.');
+        const step = findNextAvailableStep([c1, c2, t]);
+        state.ops.push(makeOp(step, 'TOFFOLI', [t], { controls: [c1, c2] }));
+        state.zones = [];
+        if (!silent) logTerminal('OK', `Añadida Toffoli (q${c1}, q${c2}) → q${t} (capa ${step}).`);
+        return true;
+      }
+
+      // SWAP
+      m = trimmed.match(/^SWAP\s+q?(\d+)\s+q?(\d+)$/i);
+      if (m) {
+        const a = parseInt(m[1], 10);
+        const b = parseInt(m[2], 10);
+        validateQubitIdx(a);
+        validateQubitIdx(b);
+        if (a === b) throw new Error('SWAP requiere dos qubits distintos.');
+        const step = findNextAvailableStep([a, b]);
+        state.ops.push(makeOp(step, 'SWAP', [a, b]));
+        state.zones = [];
+        if (!silent) logTerminal('OK', `Añadida SWAP q${a} ↔ q${b} (capa ${step}).`);
+        return true;
+      }
+
+      // Compuertas paramétricas: P(pi/4) 0, RX(pi/2) 0, RY(1.2) 1, RZ(pi) 2
+      m = trimmed.match(/^(P|PHASE|RX|RY|RZ)\s*\(([^)]+)\)\s+q?(\d+)$/i);
+      if (m) {
+        let g = m[1].toUpperCase();
+        if (g === 'PHASE') g = 'P';
+        const angle = parseAngleExpr(m[2]);
+        const q = parseInt(m[3], 10);
+        validateQubitIdx(q);
+        const step = findNextAvailableStep([q]);
+        state.ops.push(makeOp(step, g, [q], { param: angle }));
+        state.zones = [];
+        if (!silent) logTerminal('OK', `Añadida ${g}(${formatAngleShort(angle)}) en q${q} (capa ${step}).`);
+        return true;
+      }
+
+      // Compuertas de 1 qubit sin parámetro
+      m = trimmed.match(/^(H|X|Y|Z|I|S|SDG|T|TDG|SX)\s+q?(\d+)$/i);
+      if (m) {
+        const g = m[1].toUpperCase();
+        const q = parseInt(m[2], 10);
+        validateQubitIdx(q);
+        const step = findNextAvailableStep([q]);
+        state.ops.push(makeOp(step, g, [q]));
+        state.zones = [];
+        if (!silent) logTerminal('OK', `Añadida compuerta ${g} en q${q} (capa ${step}).`);
+        return true;
+      }
+
+      throw new Error(`Comando no reconocido: "${trimmed}". Escribe HELP para ver la sintaxis.`);
+    }
+
+    function executeCommand(rawInput) {
+      const cmd = rawInput.trim();
+      if (!cmd) return;
+      logTerminal('CMD', `qsh> ${cmd}`);
+      state.cmdHistory.unshift(cmd);
+      if (state.cmdHistory.length > 50) state.cmdHistory.pop();
+      state.cmdHistoryIdx = -1;
+
+      try {
+        // Soportar múltiples comandos separados por ';'
+        const parts = cmd.split(';').map(s => s.trim()).filter(Boolean);
+        let circuitChanged = false;
+        for (const p of parts) {
+          if (addOperationFromCLI(p, false)) {
+            circuitChanged = true;
+          }
+        }
+        if (circuitChanged) {
+          recomputeSimulation(true);
+          renderAll();
+        }
+      } catch (err) {
+        logTerminal('ERR', err.message);
+        showToast(err.message, 'error');
+      }
+    }
+
+    function applyScriptEditor() {
+      const text = document.getElementById('script-editor').value;
+      const lines = text.split('\n');
+      const prevSnapshot = {
+        numQubits: state.numQubits,
+        numCbits: state.numCbits,
+        numSteps: state.numSteps,
+        ops: JSON.parse(JSON.stringify(state.ops)),
+        zones: JSON.parse(JSON.stringify(state.zones)),
+        activePreset: state.activePreset
+      };
+
+      try {
+        state.ops = [];
+        state.zones = [];
+        state.numSteps = 8;
+        state.activePreset = 'blank';
+        for (let i = 0; i < lines.length; i++) {
+          const ln = lines[i].trim();
+          if (!ln || ln.startsWith('#') || ln.startsWith('//')) continue;
+          addOperationFromCLI(ln, true);
+        }
+        recomputeSimulation(true);
+        renderAll();
+        logTerminal('OK', 'Script aplicado y sincronizado con el circuito visual.');
+        showToast('Script aplicado correctamente al circuito.', 'success');
+      } catch (err) {
+        // Revertir si hubo error de sintaxis
+        Object.assign(state, prevSnapshot);
+        recomputeSimulation(false);
+        renderAll();
+        logTerminal('ERR', `Error al compilar script: ${err.message}`);
+        showToast(err.message, 'error');
+      }
+    }
+
+    function showHelpInTerminal() {
+      const helpText = [
+        'Comandos disponibles en Q-Lab Console:',
+        '  1 Qubit      : H 0 | X 1 | Y 0 | Z 2 | I 0 | S 0 | SDG 0 | T 0 | TDG 0 | SX 0',
+        '  Paramétricas : P(pi/4) 0 | RX(pi/2) 0 | RY(pi/3) 0 | RZ(pi) 0',
+        '  Multi-Qubit  : CNOT 0 1 (o CX) | TOFFOLI 0 1 2 (o CCX) | SWAP 0 1',
+        '  Medición     : M 0 -> m0',
+        '  Control Clás.: IF m1 X 2 | IF m0 Z 2',
+        '  Sistema      : QUBITS 3 | CBITS 2 | CLEAR | RUN | STEP | RESET | SHOTS 1024',
+        '  Algoritmos   : LOAD teleport | LOAD deutsch_c0 | LOAD deutsch_c1 | LOAD deutsch_b0 | LOAD deutsch_b1'
+      ].join('\n');
+      logTerminal('INFO', helpText);
+    }
+
+    /* ------------------------------------------------------------------------
+     * 7. CONTROL DE SIMULACIÓN Y DEPURACIÓN PASO A PASO
+     * ---------------------------------------------------------------------- */
+    function recomputeSimulation(jumpToEnd = false) {
+      state.snapshots = QuantumEngine.simulateTimeline(
+        state.numQubits,
+        state.numCbits,
+        state.numSteps,
+        state.ops
+      );
+      if (jumpToEnd || state.currentStep > state.numSteps) {
+        state.currentStep = state.numSteps;
+      }
+    }
+
+    function getCurrentSnapshot() {
+      const idx = Math.max(0, Math.min(state.currentStep, state.snapshots.length - 1));
+      return state.snapshots[idx];
+    }
+
+    function runFull(freshCollapse = true) {
+      if (freshCollapse) {
+        recomputeSimulation(true);
+      } else {
+        state.currentStep = state.numSteps;
+      }
+      state.vizMode = 'state';
+
+      // Registrar eventos de medición y control clásico en consola
+      const interestingEvents = [];
+      for (let s = 1; s < state.snapshots.length; s++) {
+        for (const ev of state.snapshots[s].events) {
+          if (ev.kind === 'measure' || ev.kind === 'ctrl-fired' || ev.kind === 'ctrl-skipped') {
+            interestingEvents.push(`[Capa ${s - 1}] ${ev.text}`);
+          }
+        }
+      }
+      if (interestingEvents.length > 0) {
+        logTerminal('SIM', 'Ejecución completa:\n  ' + interestingEvents.join('\n  '));
+      } else {
+        logTerminal('SIM', `Circuito ejecutado (${state.ops.length} compuertas en ${state.numSteps} capas).`);
+      }
+      renderAll();
+    }
+
+    function resetStep() {
+      state.currentStep = 0;
+      logTerminal('SIM', 'Depurador reiniciado al estado inicial |' + '0'.repeat(state.numQubits) + '⟩ (Capa 0).');
+      renderAll();
+    }
+
+    function prevStep() {
+      if (state.currentStep > 0) {
+        state.currentStep--;
+        renderAll();
+      }
+    }
+
+    function nextStep() {
+      if (state.currentStep < state.numSteps) {
+        state.currentStep++;
+        const snap = getCurrentSnapshot();
+        if (snap.events.length > 0) {
+          const msg = snap.events.map(e => e.text).join(' | ');
+          logTerminal('SIM', `Capa ${state.currentStep - 1} → ${msg}`);
+        } else {
+          logTerminal('SIM', `Capa ${state.currentStep - 1} → (vacía)`);
+        }
+        renderAll();
+      } else {
+        showToast('Ya estás en la última capa del circuito.', 'info');
+      }
+    }
+
+    function runShots(count = 1024) {
+      const res = QuantumEngine.runMultiShots(
+        state.numQubits,
+        state.numCbits,
+        state.numSteps,
+        state.ops,
+        count
+      );
+      state.lastShots = res;
+      state.vizMode = 'shots';
+
+      const sorted = Array.from(res.counts.entries()).sort((a, b) => b[1] - a[1]).slice(0, 5);
+      const summary = sorted.map(([k, v]) => `|${k}⟩: ${v} (${((v / count) * 100).toFixed(1)}%)`).join('  ');
+      logTerminal('SIM', `Ejecutados ${count} shots → ${summary}`);
+      renderAll();
+      showToast(`Simulación completada: ${count} shots.`, 'success');
+    }
+
+    /* ------------------------------------------------------------------------
+     * 8. RENDERIZADO DE LA PALETA Y EDITOR VISUAL DE CIRCUITOS
+     * ---------------------------------------------------------------------- */
+    function renderPalette() {
+      const container = document.getElementById('gate-palette');
+      container.innerHTML = '';
+
+      for (const grp of PALETTE_GROUPS) {
+        const box = document.createElement('div');
+        box.className = 'rounded-xl bg-slate-900/70 border border-slate-800/90 p-2';
+        box.innerHTML = `<div class="text-[10px] font-mono uppercase tracking-wider text-slate-400 mb-1.5 px-1">${grp.label}</div>`;
+
+        const row = document.createElement('div');
+        row.className = 'flex flex-wrap gap-1.5';
+
+        for (const gKey of grp.gates) {
+          const def = GATE_DEFS[gKey];
+          const isSelected = state.selectedTool === gKey;
+          const btn = document.createElement('button');
+          btn.type = 'button';
+          btn.draggable = true;
+          btn.className = `px-2.5 py-1.5 rounded-lg border font-mono text-xs font-bold transition-all cursor-grab active:cursor-grabbing ${def.color} ${
+            isSelected ? 'ring-2 ring-cyan-300 ring-offset-1 ring-offset-[#0a101f] scale-[1.03]' : 'opacity-90 hover:opacity-100 hover:scale-[1.03]'
+          }`;
+          btn.textContent = def.symbol;
+          btn.title = `${def.name} — ${def.desc}`;
+
+          btn.addEventListener('click', () => selectTool(gKey));
+          btn.addEventListener('mouseenter', () => updateGateInspector(gKey));
+          btn.addEventListener('dragstart', (e) => {
+            e.dataTransfer.setData('text/plain', gKey);
+            selectTool(gKey);
+          });
+          row.appendChild(btn);
+        }
+        box.appendChild(row);
+        container.appendChild(box);
+      }
+
+      // Actualizar estado del botón Borrador y badge de herramienta
+      const eraserBtn = document.getElementById('btn-eraser');
+      const badge = document.getElementById('selected-tool-badge');
+      if (state.selectedTool === 'ERASER') {
+        eraserBtn.className = 'px-2.5 py-1 rounded-lg text-[11px] font-semibold bg-rose-500/25 text-rose-200 border border-rose-400/70 ring-1 ring-rose-400 transition';
+        badge.textContent = 'Herramienta: Borrador (clic en compuerta)';
+        badge.className = 'px-2.5 py-1 rounded-lg text-[11px] font-mono bg-rose-500/15 text-rose-300 border border-rose-500/30';
+      } else {
+        eraserBtn.className = 'px-2.5 py-1 rounded-lg text-[11px] font-medium bg-slate-800 hover:bg-rose-500/20 hover:text-rose-300 border border-slate-700 text-slate-300 transition';
+        const def = GATE_DEFS[state.selectedTool];
+        badge.textContent = `Herramienta: ${def ? def.name : state.selectedTool}`;
+        badge.className = 'px-2.5 py-1 rounded-lg text-[11px] font-mono bg-cyan-500/15 text-cyan-300 border border-cyan-500/30';
+      }
+    }
+
+    function selectTool(toolKey) {
+      state.selectedTool = toolKey;
+      renderPalette();
+      if (toolKey !== 'ERASER') updateGateInspector(toolKey);
+    }
+
+    function updateGateInspector(gKey) {
+      const def = GATE_DEFS[gKey];
+      if (!def) return;
+      document.getElementById('insp-name').textContent = def.name;
+      document.getElementById('insp-cli').textContent = `CLI: ${def.cli}`;
+      document.getElementById('insp-desc').textContent = def.desc;
+      document.getElementById('insp-matrix').innerHTML = def.matrixHtml;
+    }
+
+    /**
+     * Renderiza el diagrama completo de qubits, registros clásicos, compuertas y cables SVG
+     */
+    function renderCircuit() {
+      document.getElementById('lbl-num-qubits').textContent = state.numQubits;
+      document.getElementById('lbl-num-cbits').textContent = state.numCbits;
+      document.getElementById('lbl-num-steps').textContent = state.numSteps;
+
+      const zonesEl = document.getElementById('circuit-zones');
+      const headersEl = document.getElementById('circuit-step-headers');
+      const rowsEl = document.getElementById('circuit-rows');
+      const svgEl = document.getElementById('circuit-svg');
+
+      const totalGridW = state.numSteps * CELL_W;
+      zonesEl.style.width = totalGridW + 'px';
+      headersEl.style.width = totalGridW + 'px';
+      zonesEl.innerHTML = '';
+      headersEl.innerHTML = '';
+      rowsEl.innerHTML = '';
+
+      // 1. Renderizar etiquetas de zonas (ej. Preparación |ψ⟩, Protocolo, Oráculo U_f)
+      if (state.zones.length > 0) {
+        zonesEl.classList.remove('hidden');
+        for (const z of state.zones) {
+          const zDiv = document.createElement('div');
+          const left = z.start * CELL_W + 3;
+          const width = (z.end - z.start + 1) * CELL_W - 6;
+          zDiv.style.left = left + 'px';
+          zDiv.style.width = width + 'px';
+          zDiv.className = `absolute top-0 h-5 px-1.5 rounded-md border text-[9.5px] font-mono font-semibold flex items-center justify-center truncate ${z.color}`;
+          zDiv.textContent = z.label;
+          zonesEl.appendChild(zDiv);
+        }
+      } else {
+        zonesEl.classList.add('hidden');
+      }
+
+      // 2. Renderizar números de capa (0..numSteps-1)
+      for (let s = 0; s < state.numSteps; s++) {
+        const h = document.createElement('div');
+        h.style.width = CELL_W + 'px';
+        const isCurrent = (state.currentStep === s + 1);
+        h.className = `text-center text-[10px] font-mono py-0.5 rounded-t-md cursor-pointer transition ${
+          isCurrent ? 'text-cyan-300 font-bold bg-cyan-500/15' : 'text-slate-500 hover:text-slate-300'
+        }`;
+        h.textContent = `C${s}`;
+        h.title = `Saltar a la capa ${s + 1}`;
+        h.onclick = () => { state.currentStep = s + 1; renderAll(); };
+        headersEl.appendChild(h);
+      }
+
+      const snap = getCurrentSnapshot();
+
+      // Indexar operaciones por (step, qubit) para render rápido
+      const opAtCell = new Map();
+      for (const op of state.ops) {
+        for (const c of op.controls) opAtCell.set(`${op.step}_${c}`, { op, role: 'control' });
+        op.targets.forEach((t, idx) => opAtCell.set(`${op.step}_${t}`, { op, role: 'target', idx }));
+      }
+
+      // Calcular eventos activos en el snapshot actual (para iluminar disparos IF)
+      const firedOpIds = new Set();
+      const skippedOpIds = new Set();
+      for (let s = 1; s <= state.currentStep && s < state.snapshots.length; s++) {
+        for (const ev of state.snapshots[s].events) {
+          if (ev.kind === 'ctrl-fired') firedOpIds.add(ev.opId);
+          if (ev.kind === 'ctrl-skipped') skippedOpIds.add(ev.opId);
+        }
+      }
+
+      // 3. Renderizar filas de Qubits (q0..q_{n-1})
+      for (let q = 0; q < state.numQubits; q++) {
+        const row = document.createElement('div');
+        row.style.height = ROW_H + 'px';
+        row.className = 'relative flex items-center';
+
+        // Etiqueta del Qubit
+        const lbl = document.createElement('div');
+        lbl.style.width = LABEL_W + 'px';
+        lbl.className = 'shrink-0 pr-2 flex items-center justify-end gap-1.5 font-mono text-xs';
+        lbl.innerHTML = `<span class="text-slate-300 font-bold">q<sub>${q}</sub></span><span class="px-1.5 py-0.5 rounded bg-slate-900 border border-slate-700/80 text-[10px] text-cyan-300">|0⟩</span>`;
+        row.appendChild(lbl);
+
+        // Línea horizontal cuántica
+        const wireWrap = document.createElement('div');
+        wireWrap.style.width = totalGridW + 'px';
+        wireWrap.className = 'relative flex items-center h-full';
+
+        const wire = document.createElement('div');
+        wire.className = 'absolute left-0 right-0 h-[2px] bg-gradient-to-r from-cyan-500/40 via-slate-600/80 to-cyan-500/40 pointer-events-none';
+        wireWrap.appendChild(wire);
+
+        // Celdas de tiempo
+        for (let s = 0; s < state.numSteps; s++) {
+          const cell = document.createElement('div');
+          cell.style.width = CELL_W + 'px';
+          cell.style.height = ROW_H + 'px';
+          const isCurrent = (state.currentStep === s + 1);
+          cell.className = `relative flex items-center justify-center cursor-pointer transition-colors hover:bg-cyan-500/10 ${
+            isCurrent ? 'active-step-col' : ''
+          }`;
+
+          // Soporte Drag & Drop
+          cell.addEventListener('dragover', (e) => { e.preventDefault(); cell.classList.add('cell-drop-hover'); });
+          cell.addEventListener('dragleave', () => cell.classList.remove('cell-drop-hover'));
+          cell.addEventListener('drop', (e) => {
+            e.preventDefault();
+            cell.classList.remove('cell-drop-hover');
+            const toolKey = e.dataTransfer.getData('text/plain');
+            if (toolKey && GATE_DEFS[toolKey]) {
+              handleCellClick(q, s, toolKey);
+            }
+          });
+
+          const entry = opAtCell.get(`${s}_${q}`);
+          if (entry) {
+            const { op, role } = entry;
+            const el = createGateVisualElement(op, role, firedOpIds.has(op.id), skippedOpIds.has(op.id));
+            el.addEventListener('click', (e) => {
+              e.stopPropagation();
+              if (state.selectedTool === 'ERASER') {
+                removeOpById(op.id);
+              } else {
+                openEditOpModal(op);
+              }
+            });
+            el.addEventListener('contextmenu', (e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              removeOpById(op.id);
+            });
+            cell.appendChild(el);
+          } else {
+            cell.addEventListener('click', () => handleCellClick(q, s, state.selectedTool));
+          }
+
+          wireWrap.appendChild(cell);
+        }
+
+        row.appendChild(wireWrap);
+        rowsEl.appendChild(row);
+      }
+
+      // Separador sutil entre registros cuánticos y clásicos
+      const sep = document.createElement('div');
+      sep.className = 'h-3 flex items-center';
+      sep.innerHTML = `<div style="width:${LABEL_W}px" class="shrink-0"></div><div style="width:${totalGridW}px" class="border-t border-dashed border-slate-800"></div>`;
+      rowsEl.appendChild(sep);
+
+      // 4. Renderizar filas de Registros Clásicos (m0..m_{c-1}) con DOBLE LÍNEA
+      const CLASSICAL_H = 34;
+      for (let c = 0; c < state.numCbits; c++) {
+        const row = document.createElement('div');
+        row.style.height = CLASSICAL_H + 'px';
+        row.className = 'relative flex items-center';
+
+        const bitVal = snap.cbits[c] ?? 0;
+        const measured = snap.measuredFlags[c];
+        const bitClass = measured
+          ? (bitVal === 1 ? 'bg-emerald-500/20 border-emerald-400/70 text-emerald-300' : 'bg-amber-500/15 border-amber-400/50 text-amber-200')
+          : 'bg-slate-900 border-slate-700 text-slate-500';
+
+        const lbl = document.createElement('div');
+        lbl.style.width = LABEL_W + 'px';
+        lbl.className = 'shrink-0 pr-2 flex items-center justify-end gap-1.5 font-mono text-[11px]';
+        lbl.innerHTML = `<span class="text-amber-300/90 font-semibold">m<sub>${c}</sub></span><span class="px-1.5 py-0.5 rounded border text-[10px] font-bold ${bitClass}">${measured ? bitVal : '?'}</span>`;
+        row.appendChild(lbl);
+
+        const wireWrap = document.createElement('div');
+        wireWrap.style.width = totalGridW + 'px';
+        wireWrap.className = 'relative flex items-center h-full';
+
+        const cWire = document.createElement('div');
+        cWire.className = 'w-full classical-wire pointer-events-none opacity-80';
+        wireWrap.appendChild(cWire);
+
+        row.appendChild(wireWrap);
+        rowsEl.appendChild(row);
+      }
+
+      // 5. Renderizar conectores verticales en SVG (CNOT, Toffoli, SWAP, M->m_k, IF m_k->gate)
+      const totalHeight = state.numQubits * ROW_H + 12 + state.numCbits * CLASSICAL_H;
+      svgEl.setAttribute('width', LABEL_W + totalGridW);
+      svgEl.setAttribute('height', totalHeight);
+      svgEl.innerHTML = '';
+
+      const qubitY = (q) => q * ROW_H + ROW_H / 2;
+      const cbitY = (c) => state.numQubits * ROW_H + 12 + c * CLASSICAL_H + CLASSICAL_H / 2;
+      const stepX = (s) => LABEL_W + s * CELL_W + CELL_W / 2;
+
+      for (const op of state.ops) {
+        const x = stepX(op.step);
+
+        // Conectores multi-qubit (CNOT, Toffoli, SWAP)
+        if (op.type === 'CNOT' || op.type === 'TOFFOLI' || op.type === 'SWAP') {
+          const allQ = [...op.controls, ...op.targets];
+          const minY = qubitY(Math.min(...allQ));
+          const maxY = qubitY(Math.max(...allQ));
+          const strokeColor = op.type === 'SWAP' ? '#22d3ee' : (op.type === 'TOFFOLI' ? '#818cf8' : '#38bdf8');
+          svgEl.appendChild(createSvgLine(x, minY, x, maxY, strokeColor, 2.2));
+        }
+
+        // Doble línea vertical descendente de Medición M -> m_k
+        if (op.type === 'M') {
+          const y1 = qubitY(op.targets[0]) + 18;
+          const y2 = cbitY(Math.min(op.cbit ?? 0, state.numCbits - 1));
+          const col = '#10b981';
+          svgEl.appendChild(createSvgLine(x - 2, y1, x - 2, y2 - 3, col, 1.4));
+          svgEl.appendChild(createSvgLine(x + 2, y1, x + 2, y2 - 3, col, 1.4));
+          // Punta de flecha sobre registro clásico
+          const arrow = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+          arrow.setAttribute('points', `${x - 5},${y2 - 6} ${x + 5},${y2 - 6} ${x},${y2 + 1}`);
+          arrow.setAttribute('fill', col);
+          svgEl.appendChild(arrow);
+        }
+
+        // Doble línea vertical ascendente de Control Clásico Dinámico IF m_k -> Compuerta
+        if (op.condBit !== null && op.condBit !== undefined) {
+          const yC = cbitY(Math.min(op.condBit, state.numCbits - 1));
+          const yT = qubitY(op.targets[0]) + 18;
+          const fired = firedOpIds.has(op.id);
+          const col = fired ? '#10b981' : '#f59e0b';
+          svgEl.appendChild(createSvgLine(x - 2, yT, x - 2, yC, col, 1.5, fired ? '' : '4 2'));
+          svgEl.appendChild(createSvgLine(x + 2, yT, x + 2, yC, col, 1.5, fired ? '' : '4 2'));
+          const dot = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+          dot.setAttribute('cx', x);
+          dot.setAttribute('cy', yC);
+          dot.setAttribute('r', '4.5');
+          dot.setAttribute('fill', col);
+          dot.setAttribute('stroke', '#050811');
+          dot.setAttribute('stroke-width', '1.5');
+          svgEl.appendChild(dot);
+        }
+      }
+    }
+
+    function createSvgLine(x1, y1, x2, y2, stroke, width = 2, dash = '') {
+      const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+      line.setAttribute('x1', x1);
+      line.setAttribute('y1', y1);
+      line.setAttribute('x2', x2);
+      line.setAttribute('y2', y2);
+      line.setAttribute('stroke', stroke);
+      line.setAttribute('stroke-width', width);
+      if (dash) line.setAttribute('stroke-dasharray', dash);
+      return line;
+    }
+
+    function createGateVisualElement(op, role, isFired, isSkipped) {
+      const wrapper = document.createElement('div');
+      wrapper.className = 'relative z-20 flex items-center justify-center cursor-pointer transition-transform hover:scale-110';
+
+      if (role === 'control') {
+        wrapper.innerHTML = `<div class="w-4 h-4 rounded-full bg-cyan-400 border-2 border-slate-950 shadow-[0_0_10px_rgba(34,211,238,0.85)]" title="Control de ${op.type} (clic para editar, clic derecho para borrar)"></div>`;
+        return wrapper;
+      }
+
+      if (op.type === 'CNOT' || op.type === 'TOFFOLI') {
+        const col = op.type === 'TOFFOLI' ? 'border-indigo-400 text-indigo-300 shadow-[0_0_12px_rgba(129,140,248,0.5)]' : 'border-cyan-400 text-cyan-300 shadow-[0_0_12px_rgba(34,211,238,0.5)]';
+        wrapper.innerHTML = `<div class="w-8 h-8 rounded-full bg-[#070d1d] border-2 ${col} flex items-center justify-center text-lg font-bold leading-none" title="Objetivo de ${op.type}">⊕</div>`;
+        return wrapper;
+      }
+
+      if (op.type === 'SWAP') {
+        wrapper.innerHTML = `<div class="w-7 h-7 rounded-full bg-[#070d1d]/90 border border-cyan-400/60 text-cyan-300 flex items-center justify-center text-sm font-bold" title="SWAP q${op.targets[0]} ↔ q${op.targets[1]}">✕</div>`;
+        return wrapper;
+      }
+
+      if (op.type === 'M') {
+        wrapper.innerHTML = `
+          <div class="w-10 h-9 rounded-lg bg-emerald-950/90 border border-emerald-400/80 text-emerald-200 flex flex-col items-center justify-center shadow-[0_0_12px_rgba(16,185,129,0.28)]" title="Medición q${op.targets[0]} → m${op.cbit}">
+            <svg class="w-4 h-3.5" viewBox="0 0 24 18" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M3 15 A9 9 0 0 1 21 15" />
+              <line x1="12" y1="15" x2="18" y2="5" />
+            </svg>
+            <span class="text-[8.5px] font-mono leading-none text-emerald-300">m${op.cbit}</span>
+          </div>`;
+        return wrapper;
+      }
+
+      // Compuertas de 1 qubit (normales o con control clásico IF)
+      const def = GATE_DEFS[op.type] || GATE_DEFS.I;
+      const isCtrl = op.condBit !== null && op.condBit !== undefined;
+      let styleClass = def.color;
+      if (isCtrl) {
+        styleClass = isFired
+          ? 'bg-emerald-500/25 border-emerald-400 text-emerald-100 shadow-[0_0_14px_rgba(16,185,129,0.45)]'
+          : (isSkipped
+            ? 'bg-slate-900/90 border-amber-500/40 text-amber-200/60 border-dashed'
+            : 'bg-amber-500/20 border-amber-400/80 text-amber-100');
+      }
+
+      const paramSub = def.parametric ? `<span class="text-[8.5px] opacity-85 leading-none mt-0.5">${formatAngleShort(op.param)}</span>` : '';
+      const condSub = isCtrl ? `<span class="text-[8px] leading-none mt-0.5 font-mono ${isFired ? 'text-emerald-300' : 'text-amber-300'}">m${op.condBit}=1</span>` : '';
+
+      wrapper.innerHTML = `
+        <div class="min-w-[40px] h-9 px-1.5 rounded-lg border ${styleClass} bg-[#0b1326] flex flex-col items-center justify-center font-mono font-bold text-xs shadow-md" title="${def.name}${isCtrl ? ` (IF m${op.condBit}=1)` : ''}">
+          <span class="leading-none">${def.symbol.replace('(φ)', '')}</span>
+          ${paramSub}${condSub}
+        </div>`;
+      return wrapper;
+    }
+
+    /* ------------------------------------------------------------------------
+     * 9. INTERACCIÓN CON EL CIRCUITO Y MODAL DE CONFIGURACIÓN
+     * ---------------------------------------------------------------------- */
+    function handleCellClick(q, step, toolKey) {
+      if (toolKey === 'ERASER') return;
+
+      // Compuertas que requieren configuración (Multi-Qubit, Control Clásico)
+      if (toolKey === 'CNOT' || toolKey === 'TOFFOLI' || toolKey === 'SWAP' || toolKey === 'IF_X' || toolKey === 'IF_Z') {
+        const def = GATE_DEFS[toolKey];
+        if (def.minQubits && state.numQubits < def.minQubits) {
+          state.numQubits = def.minQubits;
+          showToast(`Se aumentó automáticamente a ${def.minQubits} qubits para usar ${def.name}.`, 'info');
+        }
+        openCreateOpModal(toolKey, q, step);
+        return;
+      }
+
+      // Compuertas paramétricas: colocar inmediatamente con ángulo por defecto y abrir modal para afinar si se desea
+      if (GATE_DEFS[toolKey]?.parametric) {
+        const newOp = makeOp(step, toolKey, [q], { param: GATE_DEFS[toolKey].defaultParam });
+        state.ops.push(newOp);
+        state.zones = [];
+        recomputeSimulation(false);
+        renderAll();
+        openEditOpModal(newOp);
+        return;
+      }
+
+      // Medición
+      if (toolKey === 'M') {
+        const cb = Math.min(q, state.numCbits - 1);
+        state.ops.push(makeOp(step, 'M', [q], { cbit: cb }));
+        state.zones = [];
+        recomputeSimulation(false);
+        renderAll();
+        logTerminal('OK', `Medición colocada: M q${q} → m${cb} (capa ${step}).`);
+        return;
+      }
+
+      // Compuerta estándar de 1 qubit
+      state.ops.push(makeOp(step, toolKey, [q]));
+      state.zones = [];
+      recomputeSimulation(false);
+      renderAll();
+      logTerminal('OK', `Compuerta ${toolKey} colocada en q${q}, capa ${step}.`);
+    }
+
+    function removeOpById(id) {
+      const idx = state.ops.findIndex(o => o.id === id);
+      if (idx !== -1) {
+        const removed = state.ops[idx];
+        state.ops.splice(idx, 1);
+        state.zones = [];
+        recomputeSimulation(false);
+        renderAll();
+        logTerminal('INFO', `Eliminada compuerta ${removed.type} de la capa ${removed.step}.`);
+      }
+    }
+
+    function openCreateOpModal(toolKey, clickedQ, step) {
+      const isIF = toolKey === 'IF_X' || toolKey === 'IF_Z';
+      const actualType = isIF ? GATE_DEFS[toolKey].classicalControl : toolKey;
+      let controls = [];
+      let targets = [clickedQ];
+      let condBit = isIF ? 0 : null;
+
+      if (actualType === 'CNOT') {
+        const other = (clickedQ + 1) % state.numQubits;
+        controls = [clickedQ];
+        targets = [other];
+      } else if (actualType === 'TOFFOLI') {
+        const others = [0, 1, 2, 3, 4].filter(x => x < state.numQubits && x !== clickedQ);
+        controls = [clickedQ, others[0]];
+        targets = [others[1]];
+      } else if (actualType === 'SWAP') {
+        const other = (clickedQ + 1) % state.numQubits;
+        targets = [clickedQ, other];
+      }
+
+      state.modalContext = {
+        mode: 'create',
+        op: { id: null, step, type: actualType, controls, targets, param: 0, cbit: null, condBit }
+      };
+      renderModal();
+    }
+
+    function openEditOpModal(op) {
+      state.modalContext = {
+        mode: 'edit',
+        op: JSON.parse(JSON.stringify(op))
+      };
+      renderModal();
+    }
+
+    function renderModal() {
+      const ctx = state.modalContext;
+      if (!ctx) return;
+      const op = ctx.op;
+      const def = GATE_DEFS[op.type] || GATE_DEFS.I;
+      const modal = document.getElementById('gate-modal');
+      const body = document.getElementById('modal-body');
+
+      document.getElementById('modal-gate-badge').textContent = def.symbol;
+      document.getElementById('modal-title').textContent = `${ctx.mode === 'create' ? 'Añadir' : 'Editar'} ${def.name} (Capa ${op.step})`;
+      document.getElementById('modal-btn-delete').classList.toggle('hidden', ctx.mode !== 'edit');
+
+      const qubitOpts = (sel) => Array.from({ length: state.numQubits }, (_, i) =>
+        `<option value="${i}" ${i === sel ? 'selected' : ''}>q${i}</option>`
+      ).join('');
+      const cbitOpts = (sel) => Array.from({ length: state.numCbits }, (_, i) =>
+        `<option value="${i}" ${i === sel ? 'selected' : ''}>m${i}</option>`
+      ).join('');
+
+      let html = `<p class="text-slate-400 text-[11px]">${def.desc}</p>`;
+
+      // Configuración por tipo
+      if (op.type === 'CNOT') {
+        html += `
+          <div class="grid grid-cols-2 gap-3">
+            <label class="space-y-1">
+              <span class="text-slate-300 font-medium block">Qubit Control (●)</span>
+              <select id="m-c0" class="w-full rounded-lg bg-slate-900 border border-slate-700 px-2.5 py-2 font-mono text-cyan-200">${qubitOpts(op.controls[0])}</select>
+            </label>
+            <label class="space-y-1">
+              <span class="text-slate-300 font-medium block">Qubit Objetivo (⊕)</span>
+              <select id="m-t0" class="w-full rounded-lg bg-slate-900 border border-slate-700 px-2.5 py-2 font-mono text-cyan-200">${qubitOpts(op.targets[0])}</select>
+            </label>
+          </div>`;
+      } else if (op.type === 'TOFFOLI') {
+        html += `
+          <div class="grid grid-cols-3 gap-2">
+            <label class="space-y-1">
+              <span class="text-slate-300 font-medium block">Control 1</span>
+              <select id="m-c0" class="w-full rounded-lg bg-slate-900 border border-slate-700 px-2 py-2 font-mono text-cyan-200">${qubitOpts(op.controls[0])}</select>
+            </label>
+            <label class="space-y-1">
+              <span class="text-slate-300 font-medium block">Control 2</span>
+              <select id="m-c1" class="w-full rounded-lg bg-slate-900 border border-slate-700 px-2 py-2 font-mono text-cyan-200">${qubitOpts(op.controls[1])}</select>
+            </label>
+            <label class="space-y-1">
+              <span class="text-slate-300 font-medium block">Objetivo (⊕)</span>
+              <select id="m-t0" class="w-full rounded-lg bg-slate-900 border border-slate-700 px-2 py-2 font-mono text-indigo-200">${qubitOpts(op.targets[0])}</select>
+            </label>
+          </div>`;
+      } else if (op.type === 'SWAP') {
+        html += `
+          <div class="grid grid-cols-2 gap-3">
+            <label class="space-y-1">
+              <span class="text-slate-300 font-medium block">Qubit A (✕)</span>
+              <select id="m-t0" class="w-full rounded-lg bg-slate-900 border border-slate-700 px-2.5 py-2 font-mono text-cyan-200">${qubitOpts(op.targets[0])}</select>
+            </label>
+            <label class="space-y-1">
+              <span class="text-slate-300 font-medium block">Qubit B (✕)</span>
+              <select id="m-t1" class="w-full rounded-lg bg-slate-900 border border-slate-700 px-2.5 py-2 font-mono text-cyan-200">${qubitOpts(op.targets[1])}</select>
+            </label>
+          </div>`;
+      } else if (op.type === 'M') {
+        html += `
+          <div class="grid grid-cols-2 gap-3">
+            <label class="space-y-1">
+              <span class="text-slate-300 font-medium block">Qubit a Medir</span>
+              <select id="m-t0" class="w-full rounded-lg bg-slate-900 border border-slate-700 px-2.5 py-2 font-mono text-emerald-200">${qubitOpts(op.targets[0])}</select>
+            </label>
+            <label class="space-y-1">
+              <span class="text-slate-300 font-medium block">Registro Clásico</span>
+              <select id="m-cbit" class="w-full rounded-lg bg-slate-900 border border-slate-700 px-2.5 py-2 font-mono text-amber-200">${cbitOpts(op.cbit ?? 0)}</select>
+            </label>
+          </div>`;
+      } else {
+        // Compuerta de 1 qubit (opcionalmente paramétrica y/o con control clásico)
+        html += `
+          <div class="grid grid-cols-2 gap-3">
+            <label class="space-y-1">
+              <span class="text-slate-300 font-medium block">Qubit Objetivo</span>
+              <select id="m-t0" class="w-full rounded-lg bg-slate-900 border border-slate-700 px-2.5 py-2 font-mono text-cyan-200">${qubitOpts(op.targets[0])}</select>
+            </label>
+            <label class="space-y-1">
+              <span class="text-slate-300 font-medium block">Control Clásico (Opcional)</span>
+              <select id="m-condbit" class="w-full rounded-lg bg-slate-900 border border-slate-700 px-2.5 py-2 font-mono text-amber-200">
+                <option value="none" ${op.condBit === null || op.condBit === undefined ? 'selected' : ''}>Ninguno (Incondicional)</option>
+                ${Array.from({ length: state.numCbits }, (_, i) => `<option value="${i}" ${op.condBit === i ? 'selected' : ''}>IF m${i} == 1</option>`).join('')}
+              </select>
+            </label>
+          </div>`;
+
+        if (def.parametric) {
+          const pVal = Number(op.param || 0);
+          html += `
+            <div class="space-y-2.5 p-3 rounded-xl bg-slate-950/80 border border-slate-800">
+              <div class="flex items-center justify-between">
+                <span class="text-slate-300 font-medium">Ángulo ${def.paramName} (radianes)</span>
+                <span id="m-angle-pretty" class="font-mono text-purple-300 font-bold">${formatAngleShort(pVal)} (${pVal.toFixed(4)} rad)</span>
+              </div>
+              <input id="m-angle-slider" type="range" min="-6.28318" max="6.28318" step="0.01" value="${pVal}" oninput="QLab.syncModalAngleFromSlider()" class="w-full" />
+              <div class="flex flex-wrap gap-1.5">
+                ${[
+                  { l: 'π/4', v: 'pi/4' }, { l: 'π/2', v: 'pi/2' }, { l: 'π', v: 'pi' },
+                  { l: '−π/4', v: '-pi/4' }, { l: '−π/2', v: '-pi/2' }, { l: '3π/4', v: '3*pi/4' }, { l: '2π', v: '2*pi' }
+                ].map(p => `<button type="button" onclick="QLab.setModalAnglePreset('${p.v}')" class="px-2 py-1 rounded-md bg-slate-800 hover:bg-purple-500/25 border border-slate-700 font-mono text-[11px] text-purple-200 transition">${p.l}</button>`).join('')}
+              </div>
+              <label class="block">
+                <span class="text-[11px] text-slate-400">Expresión exacta o valor numérico (ej. pi/3, -1.57, 90deg):</span>
+                <input id="m-angle-text" type="text" value="${formatAngleCLI(pVal)}" oninput="QLab.syncModalAngleFromText()" class="mt-1 w-full rounded-lg bg-slate-900 border border-slate-700 px-2.5 py-1.5 font-mono text-xs text-white focus:border-cyan-400 focus:outline-none" />
+              </label>
+            </div>`;
+        }
+      }
+
+      body.innerHTML = html;
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
+    }
+
+    function syncModalAngleFromSlider() {
+      const val = parseFloat(document.getElementById('m-angle-slider').value);
+      document.getElementById('m-angle-text').value = val.toFixed(4);
+      document.getElementById('m-angle-pretty').textContent = `${formatAngleShort(val)} (${val.toFixed(4)} rad)`;
+    }
+
+    function syncModalAngleFromText() {
+      try {
+        const val = parseAngleExpr(document.getElementById('m-angle-text').value);
+        document.getElementById('m-angle-slider').value = Math.max(-6.28318, Math.min(6.28318, val));
+        document.getElementById('m-angle-pretty').textContent = `${formatAngleShort(val)} (${val.toFixed(4)} rad)`;
+      } catch (_) {
+        document.getElementById('m-angle-pretty').textContent = 'Expresión incompleta...';
+      }
+    }
+
+    function setModalAnglePreset(expr) {
+      document.getElementById('m-angle-text').value = expr;
+      syncModalAngleFromText();
+    }
+
+    function saveModalOp() {
+      const ctx = state.modalContext;
+      if (!ctx) return;
+      const op = ctx.op;
+
+      try {
+        if (op.type === 'CNOT') {
+          const c0 = parseInt(document.getElementById('m-c0').value, 10);
+          const t0 = parseInt(document.getElementById('m-t0').value, 10);
+          if (c0 === t0) throw new Error('Control y objetivo deben ser qubits diferentes.');
+          op.controls = [c0];
+          op.targets = [t0];
+        } else if (op.type === 'TOFFOLI') {
+          const c0 = parseInt(document.getElementById('m-c0').value, 10);
+          const c1 = parseInt(document.getElementById('m-c1').value, 10);
+          const t0 = parseInt(document.getElementById('m-t0').value, 10);
+          if (new Set([c0, c1, t0]).size !== 3) throw new Error('Toffoli requiere tres qubits distintos.');
+          op.controls = [c0, c1];
+          op.targets = [t0];
+        } else if (op.type === 'SWAP') {
+          const t0 = parseInt(document.getElementById('m-t0').value, 10);
+          const t1 = parseInt(document.getElementById('m-t1').value, 10);
+          if (t0 === t1) throw new Error('SWAP requiere dos qubits diferentes.');
+          op.targets = [t0, t1];
+        } else if (op.type === 'M') {
+          op.targets = [parseInt(document.getElementById('m-t0').value, 10)];
+          op.cbit = parseInt(document.getElementById('m-cbit').value, 10);
+        } else {
+          op.targets = [parseInt(document.getElementById('m-t0').value, 10)];
+          const cbVal = document.getElementById('m-condbit').value;
+          op.condBit = cbVal === 'none' ? null : parseInt(cbVal, 10);
+          if (GATE_DEFS[op.type]?.parametric) {
+            op.param = parseAngleExpr(document.getElementById('m-angle-text').value);
+          }
+        }
+
+        // Comprobar colisión en la misma capa
+        const involved = new Set([...op.controls, ...op.targets]);
+        const collision = state.ops.find(other =>
+          other.id !== op.id &&
+          other.step === op.step &&
+          [...other.controls, ...other.targets].some(q => involved.has(q))
+        );
+        if (collision) {
+          throw new Error(`Ya existe una compuerta (${collision.type}) en la capa ${op.step} ocupando uno de los qubits seleccionados.`);
+        }
+
+        if (ctx.mode === 'create') {
+          op.id = 'op_' + (state.opCounter++);
+          state.ops.push(op);
+          logTerminal('OK', `Añadida compuerta ${op.type} en capa ${op.step}.`);
+        } else {
+          const idx = state.ops.findIndex(o => o.id === op.id);
+          if (idx !== -1) state.ops[idx] = op;
+          logTerminal('OK', `Actualizada compuerta ${op.type} en capa ${op.step}.`);
+        }
+
+        closeModal();
+        recomputeSimulation(false);
+        renderAll();
+      } catch (err) {
+        showToast(err.message, 'error');
+      }
+    }
+
+    function deleteModalOp() {
+      if (state.modalContext?.op?.id) {
+        const id = state.modalContext.op.id;
+        closeModal();
+        removeOpById(id);
+      }
+    }
+
+    function closeModal() {
+      state.modalContext = null;
+      const modal = document.getElementById('gate-modal');
+      modal.classList.add('hidden');
+      modal.classList.remove('flex');
+    }
+
+    /* ------------------------------------------------------------------------
+     * 10. RENDERIZADO 3D DE ESFERAS DE BLOCH (HTML5 CANVAS)
+     * ---------------------------------------------------------------------- */
+    function renderBlochSpheres() {
+      const grid = document.getElementById('bloch-grid');
+      const snap = getCurrentSnapshot();
+      grid.innerHTML = '';
+
+      for (let q = 0; q < state.numQubits; q++) {
+        const b = QuantumEngine.getBlochVector(snap.st, state.numQubits, q);
+        const isEntangled = b.radius < 0.985;
+
+        const card = document.createElement('div');
+        card.className = 'rounded-xl bg-slate-950/90 border border-slate-800/90 p-2.5 flex flex-col items-center';
+
+        const header = document.createElement('div');
+        header.className = 'w-full flex items-center justify-between mb-1';
+        header.innerHTML = `
+          <span class="font-mono text-xs font-bold text-cyan-300">Qubit q<sub>${q}</sub></span>
+          <span class="px-1.5 py-0.5 rounded text-[9.5px] font-mono border ${
+            isEntangled
+              ? 'bg-purple-500/15 text-purple-300 border-purple-500/40'
+              : 'bg-emerald-500/15 text-emerald-300 border-emerald-500/40'
+          }">${isEntangled ? 'Entrelazado' : 'Estado Puro'}</span>`;
+        card.appendChild(header);
+
+        const canvasWrap = document.createElement('div');
+        canvasWrap.className = 'w-full aspect-square max-w-[180px] relative cursor-grab active:cursor-grabbing';
+        const canvas = document.createElement('canvas');
+        canvas.className = 'w-full h-full block';
+        canvas.dataset.qubit = q;
+        canvasWrap.appendChild(canvas);
+        card.appendChild(canvasWrap);
+
+        // Interacción de arrastre para orbitar la esfera (Mouse y Touch)
+        attachBlochOrbit(canvas);
+
+        const stats = document.createElement('div');
+        stats.className = 'w-full mt-1.5 pt-1.5 border-t border-slate-800/80 font-mono text-[10px] space-y-0.5';
+        stats.innerHTML = `
+          <div class="flex justify-between text-slate-300">
+            <span>r = (${fmtNum(b.rx)}, ${fmtNum(b.ry)}, ${fmtNum(b.rz)})</span>
+          </div>
+          <div class="flex justify-between text-slate-400">
+            <span>|r| = <strong class="text-slate-200">${b.radius.toFixed(2)}</strong></span>
+            <span>P(|1⟩) = <strong class="text-cyan-300">${(b.p1 * 100).toFixed(1)}%</strong></span>
+          </div>`;
+        card.appendChild(stats);
+
+        grid.appendChild(card);
+
+        // Dibujar inmediatamente con dimensiones reales del contenedor
+        requestAnimationFrame(() => drawBlochCanvas(canvas, b));
+      }
+    }
+
+    function fmtNum(v) {
+      return Math.abs(v) < 0.005 ? '0.00' : v.toFixed(2);
+    }
+
+    function attachBlochOrbit(canvas) {
+      let dragging = false;
+      let lastX = 0, lastY = 0;
+
+      const start = (x, y) => { dragging = true; lastX = x; lastY = y; };
+      const move = (x, y) => {
+        if (!dragging) return;
+        const dx = x - lastX;
+        const dy = y - lastY;
+        lastX = x; lastY = y;
+        state.blochCamera.yaw += dx * 0.012;
+        state.blochCamera.pitch = Math.max(-1.2, Math.min(1.2, state.blochCamera.pitch + dy * 0.012));
+        redrawAllBlochCanvases();
+      };
+      const end = () => { dragging = false; };
+
+      canvas.addEventListener('mousedown', e => start(e.clientX, e.clientY));
+      window.addEventListener('mousemove', e => move(e.clientX, e.clientY));
+      window.addEventListener('mouseup', end);
+
+      canvas.addEventListener('touchstart', e => {
+        if (e.touches.length === 1) start(e.touches[0].clientX, e.touches[0].clientY);
+      }, { passive: true });
+      canvas.addEventListener('touchmove', e => {
+        if (dragging && e.touches.length === 1) {
+          move(e.touches[0].clientX, e.touches[0].clientY);
+        }
+      }, { passive: true });
+      canvas.addEventListener('touchend', end);
+    }
+
+    function redrawAllBlochCanvases() {
+      const snap = getCurrentSnapshot();
+      document.querySelectorAll('#bloch-grid canvas').forEach(canvas => {
+        const q = parseInt(canvas.dataset.qubit, 10);
+        if (!isNaN(q) && q < state.numQubits) {
+          drawBlochCanvas(canvas, QuantumEngine.getBlochVector(snap.st, state.numQubits, q));
+        }
+      });
+    }
+
+    function resetBlochCamera() {
+      state.blochCamera = { yaw: 0.62, pitch: 0.36 };
+      redrawAllBlochCanvases();
+    }
+
+    /**
+     * Proyección 3D limpia y científica de la Esfera de Bloch
+     * Convención física estándar: +Z arriba (|0⟩), +X saliendo hacia el observador-izquierda (|+⟩), +Y derecha (|+i⟩)
+     */
+    function drawBlochCanvas(canvas, bloch) {
+      const rect = canvas.getBoundingClientRect();
+      const size = Math.max(120, Math.floor(rect.width || 160));
+      const dpr = window.devicePixelRatio || 1;
+      canvas.width = size * dpr;
+      canvas.height = size * dpr;
+
+      const ctx = canvas.getContext('2d');
+      ctx.scale(dpr, dpr);
+      ctx.clearRect(0, 0, size, size);
+
+      const cx = size / 2;
+      const cy = size / 2;
+      const R = size * 0.36;
+
+      const { yaw, pitch } = state.blochCamera;
+      const cosY = Math.cos(yaw), sinY = Math.sin(yaw);
+      const cosP = Math.cos(pitch), sinP = Math.sin(pitch);
+
+      // Proyectar punto (x, y, z) en coords Bloch a 2D (sx, sy, depth)
+      // Mapeo: screenX depende de Y y X rotados por yaw; screenY depende de Z y profundidad por pitch
+      function project(x, y, z) {
+        const xr = y * cosY - x * sinY;
+        const zr = y * sinY + x * cosY; // profundidad hacia el observador
+        const yr = z * cosP - zr * sinP;
+        const depth = z * sinP + zr * cosP;
+        return { sx: cx + xr * R, sy: cy - yr * R, depth };
+      }
+
+      // 1. Halo sutil y esfera translúcida
+      const grad = ctx.createRadialGradient(cx - R * 0.25, cy - R * 0.25, R * 0.1, cx, cy, R);
+      grad.addColorStop(0, 'rgba(34, 211, 238, 0.13)');
+      grad.addColorStop(0.75, 'rgba(15, 23, 42, 0.35)');
+      grad.addColorStop(1, 'rgba(56, 189, 248, 0.08)');
+      ctx.beginPath();
+      ctx.arc(cx, cy, R, 0, Math.PI * 2);
+      ctx.fillStyle = grad;
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(148, 163, 184, 0.28)';
+      ctx.lineWidth = 1.2;
+      ctx.stroke();
+
+      // 2. Dibujar círculos máximos (Ecuador XY, Meridiano XZ, Meridiano YZ)
+      function drawGreatCircle(fn, strokeFront, strokeBack) {
+        const steps = 64;
+        for (let i = 0; i < steps; i++) {
+          const a1 = (i / steps) * Math.PI * 2;
+          const a2 = ((i + 1) / steps) * Math.PI * 2;
+          const p1 = project(...fn(a1));
+          const p2 = project(...fn(a2));
+          ctx.beginPath();
+          ctx.moveTo(p1.sx, p1.sy);
+          ctx.lineTo(p2.sx, p2.sy);
+          ctx.strokeStyle = (p1.depth + p2.depth) >= 0 ? strokeFront : strokeBack;
+          ctx.lineWidth = (p1.depth + p2.depth) >= 0 ? 1 : 0.7;
+          ctx.stroke();
+        }
+      }
+      drawGreatCircle(a => [Math.cos(a), Math.sin(a), 0], 'rgba(34, 211, 238, 0.35)', 'rgba(34, 211, 238, 0.10)');
+      drawGreatCircle(a => [Math.cos(a), 0, Math.sin(a)], 'rgba(148, 163, 184, 0.18)', 'rgba(148, 163, 184, 0.06)');
+      drawGreatCircle(a => [0, Math.cos(a), Math.sin(a)], 'rgba(148, 163, 184, 0.18)', 'rgba(148, 163, 184, 0.06)');
+
+      // 3. Ejes X, Y, Z y etiquetas |0⟩, |1⟩, |+⟩, |−⟩
+      const axes = [
+        { from: [0, 0, -1], to: [0, 0, 1], color: 'rgba(148, 163, 184, 0.45)' },
+        { from: [-1, 0, 0], to: [1, 0, 0], color: 'rgba(56, 189, 248, 0.35)' },
+        { from: [0, -1, 0], to: [0, 1, 0], color: 'rgba(168, 85, 247, 0.35)' }
+      ];
+      for (const ax of axes) {
+        const p1 = project(...ax.from);
+        const p2 = project(...ax.to);
+        ctx.beginPath();
+        ctx.moveTo(p1.sx, p1.sy);
+        ctx.lineTo(p2.sx, p2.sy);
+        ctx.strokeStyle = ax.color;
+        ctx.lineWidth = 1;
+        ctx.stroke();
+      }
+
+      const labels = [
+        { pos: [0, 0, 1.24], text: '|0⟩', color: '#e2e8f0' },
+        { pos: [0, 0, -1.24], text: '|1⟩', color: '#94a3b8' },
+        { pos: [1.26, 0, 0], text: '|+⟩', color: '#38bdf8' },
+        { pos: [-1.26, 0, 0], text: '|−⟩', color: '#64748b' },
+        { pos: [0, 1.26, 0], text: '+Y', color: '#c084fc' }
+      ];
+      ctx.font = '600 10px ui-monospace, SFMono-Regular, Menlo, monospace';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      for (const lb of labels) {
+        const p = project(...lb.pos);
+        ctx.fillStyle = lb.color;
+        ctx.fillText(lb.text, p.sx, p.sy);
+      }
+
+      // 4. Proyección sombra del vector sobre el plano ecuatorial
+      const origin = project(0, 0, 0);
+      const tip = project(bloch.rx, bloch.ry, bloch.rz);
+      const eqProj = project(bloch.rx, bloch.ry, 0);
+
+      if (bloch.radius > 0.03) {
+        ctx.save();
+        ctx.setLineDash([3, 3]);
+        ctx.beginPath();
+        ctx.moveTo(origin.sx, origin.sy);
+        ctx.lineTo(eqProj.sx, eqProj.sy);
+        ctx.lineTo(tip.sx, tip.sy);
+        ctx.strokeStyle = 'rgba(34, 211, 238, 0.35)';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+        ctx.restore();
+      }
+
+      // 5. Vector de estado Bloch brillante
+      const vecColor = bloch.radius < 0.985 ? '#c084fc' : '#22d3ee';
+      ctx.beginPath();
+      ctx.moveTo(origin.sx, origin.sy);
+      ctx.lineTo(tip.sx, tip.sy);
+      ctx.strokeStyle = vecColor;
+      ctx.lineWidth = 2.6;
+      ctx.shadowColor = vecColor;
+      ctx.shadowBlur = 10;
+      ctx.stroke();
+      ctx.shadowBlur = 0;
+
+      // Punta del vector (esfera luminosa)
+      ctx.beginPath();
+      ctx.arc(tip.sx, tip.sy, bloch.radius < 0.05 ? 4.5 : 4, 0, Math.PI * 2);
+      ctx.fillStyle = bloch.radius < 0.985 ? '#e879f9' : '#67e8f9';
+      ctx.fill();
+      ctx.strokeStyle = '#050811';
+      ctx.lineWidth = 1.2;
+      ctx.stroke();
+    }
+
+    /* ------------------------------------------------------------------------
+     * 11. PROBABILIDADES, AMPLITUDES COMPLEJAS, FASE Y EXPRESIÓN DIRAC
+     * ---------------------------------------------------------------------- */
+    function setVizMode(mode) {
+      if (mode === 'shots' && !state.lastShots) {
+        runShots(1024);
+        return;
+      }
+      state.vizMode = mode;
+      renderProbabilities();
+    }
+
+    function renderProbabilities() {
+      const snap = getCurrentSnapshot();
+      const n = state.numQubits;
+      const dim = 1 << n;
+      const hideZero = document.getElementById('chk-hide-zero').checked;
+
+      // Actualizar botones de modo
+      document.getElementById('viz-mode-state').className = state.vizMode === 'state'
+        ? 'px-2 py-1 rounded-md bg-cyan-500/20 text-cyan-300 font-semibold transition'
+        : 'px-2 py-1 rounded-md text-slate-400 hover:text-slate-200 transition';
+      document.getElementById('viz-mode-shots').className = state.vizMode === 'shots'
+        ? 'px-2 py-1 rounded-md bg-purple-500/20 text-purple-300 font-semibold transition'
+        : 'px-2 py-1 rounded-md text-slate-400 hover:text-slate-200 transition';
+
+      // Resumen de bits clásicos
+      const cSummary = snap.cbits.map((v, i) => `m${i}=${snap.measuredFlags[i] ? v : '?'}`).join(', ');
+      document.getElementById('classical-reg-summary').textContent = `Clásicos: ${cSummary}`;
+
+      // Expresión Dirac |ψ⟩
+      const terms = [];
+      for (let i = 0; i < dim; i++) {
+        const r = snap.st.re[i], im = snap.st.im[i];
+        const mag = Math.hypot(r, im);
+        if (mag > 1e-4) {
+          const ket = `|${i.toString(2).padStart(n, '0')}⟩`;
+          let coeff = '';
+          if (Math.abs(im) < 1e-4) {
+            coeff = r.toFixed(3);
+          } else if (Math.abs(r) < 1e-4) {
+            coeff = `${im >= 0 ? '' : '−'}${Math.abs(im).toFixed(3)}i`;
+          } else {
+            coeff = `(${r.toFixed(2)}${im >= 0 ? '+' : '−'}${Math.abs(im).toFixed(2)}i)`;
+          }
+          terms.push(`${coeff}${ket}`);
+        }
+      }
+      document.getElementById('dirac-expression').textContent = terms.length > 0 ? terms.join(' + ').replace(/\+ −/g, '− ') : '0';
+
+      const container = document.getElementById('prob-bars-container');
+      container.innerHTML = '';
+
+      if (state.vizMode === 'shots' && state.lastShots) {
+        document.getElementById('prob-subtitle').textContent = `Frecuencias empíricas de ${state.lastShots.shots} shots`;
+        for (let i = 0; i < dim; i++) {
+          const bitstr = i.toString(2).padStart(n, '0');
+          const count = state.lastShots.counts.get(bitstr) || 0;
+          const pct = (count / state.lastShots.shots) * 100;
+          if (hideZero && count === 0) continue;
+
+          const row = document.createElement('div');
+          row.className = 'rounded-lg bg-slate-950/70 border border-slate-800/80 px-2.5 py-1.5';
+          row.innerHTML = `
+            <div class="flex items-center justify-between text-[11px] font-mono mb-1">
+              <span class="font-bold text-purple-200">|${bitstr}⟩</span>
+              <span class="text-slate-300">${count} shots <strong class="text-purple-300">(${pct.toFixed(1)}%)</strong></span>
+            </div>
+            <div class="w-full h-2 rounded-full bg-slate-900 overflow-hidden">
+              <div class="h-full rounded-full bg-gradient-to-r from-purple-500 to-cyan-400 transition-all duration-300" style="width:${pct.toFixed(2)}%"></div>
+            </div>`;
+          container.appendChild(row);
+        }
+        return;
+      }
+
+      // Modo Vector de Estado Exacto
+      document.getElementById('prob-subtitle').textContent = 'Amplitud compleja (a + bi) y rueda de fase arg(α)';
+      for (let i = 0; i < dim; i++) {
+        const r = snap.st.re[i];
+        const im = snap.st.im[i];
+        const prob = r * r + im * im;
+        const pct = prob * 100;
+        if (hideZero && prob < 1e-6) continue;
+
+        const bitstr = i.toString(2).padStart(n, '0');
+        const phaseRad = Math.atan2(im, r); // (-pi, pi]
+        const phaseDeg = (phaseRad * 180) / Math.PI;
+        const hue = ((phaseDeg + 360) % 360);
+        const phaseColor = prob > 1e-6 ? `hsl(${hue.toFixed(0)}, 85%, 62%)` : '#334155';
+
+        // Mini SVG rueda de fase
+        const px = 10 + 7 * Math.cos(phaseRad);
+        const py = 10 - 7 * Math.sin(phaseRad);
+
+        const row = document.createElement('div');
+        row.className = 'rounded-lg bg-slate-950/70 border border-slate-800/80 px-2.5 py-1.5 hover:border-slate-700 transition';
+        row.innerHTML = `
+          <div class="flex items-center justify-between gap-2 text-[11px] font-mono mb-1">
+            <div class="flex items-center gap-2">
+              <span class="font-bold text-cyan-200">|${bitstr}⟩</span>
+              <span class="text-[10px] text-slate-400">${r.toFixed(3)} ${im >= 0 ? '+' : '−'} ${Math.abs(im).toFixed(3)}i</span>
+            </div>
+            <div class="flex items-center gap-2 shrink-0">
+              <span class="font-bold ${prob > 1e-4 ? 'text-white' : 'text-slate-600'}">${pct.toFixed(2)}%</span>
+              <svg width="20" height="20" viewBox="0 0 20 20" title="Fase: ${phaseDeg.toFixed(1)}° (${phaseRad.toFixed(2)} rad)">
+                <circle cx="10" cy="10" r="8" fill="none" stroke="#1e293b" stroke-width="1.5"></circle>
+                ${prob > 1e-6 ? `<line x1="10" y1="10" x2="${px.toFixed(1)}" y2="${py.toFixed(1)}" stroke="${phaseColor}" stroke-width="2" stroke-linecap="round"></line><circle cx="${px.toFixed(1)}" cy="${py.toFixed(1)}" r="2" fill="${phaseColor}"></circle>` : ''}
+              </svg>
+            </div>
+          </div>
+          <div class="w-full h-1.5 rounded-full bg-slate-900 overflow-hidden">
+            <div class="h-full rounded-full transition-all duration-300" style="width:${pct.toFixed(2)}%; background: linear-gradient(90deg, #06b6d4, ${phaseColor});"></div>
+          </div>`;
+        container.appendChild(row);
+      }
+    }
+
+    /* ------------------------------------------------------------------------
+     * 12. PANELES CONTEXTUALES DE TELEPORTACIÓN Y DEUTSCH
+     * ---------------------------------------------------------------------- */
+    function renderAlgorithmPanels() {
+      const tpPanel = document.getElementById('panel-teleport');
+      const dPanel = document.getElementById('panel-deutsch');
+
+      // Resaltar botones de presets en header
+      ['teleport', 'deutsch', 'blank'].forEach(key => {
+        const btn = document.getElementById(`btn-preset-${key}`);
+        const active = state.activePreset === key;
+        btn.className = `preset-btn px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all flex items-center gap-1.5 ${
+          active ? 'bg-slate-800 text-white border border-cyan-500/40 shadow-sm' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 border border-transparent'
+        }`;
+      });
+
+      tpPanel.classList.toggle('hidden', state.activePreset !== 'teleport');
+      dPanel.classList.toggle('hidden', state.activePreset !== 'deutsch');
+
+      if (state.activePreset === 'teleport') {
+        document.getElementById('tp-theta').value = state.teleportTheta;
+        document.getElementById('tp-phi').value = state.teleportPhi;
+        document.getElementById('tp-theta-val').textContent = state.teleportTheta.toFixed(2);
+        document.getElementById('tp-phi-val').textContent = state.teleportPhi.toFixed(2);
+
+        // Vector de Bloch inicial de q0 (justo tras preparación: capa 2 en snapshots)
+        const prepSnap = state.snapshots[Math.min(2, state.snapshots.length - 1)];
+        const bInit = QuantumEngine.getBlochVector(prepSnap.st, state.numQubits, 0);
+
+        // Vector actual de q2 en la capa seleccionada
+        const curSnap = getCurrentSnapshot();
+        const bFinal = QuantumEngine.getBlochVector(curSnap.st, state.numQubits, 2);
+
+        // Fidelidad exacta F = (1 + r_init · r_q2) / 2
+        const dot = bInit.rx * bFinal.rx + bInit.ry * bFinal.ry + bInit.rz * bFinal.rz;
+        const fidelity = Math.max(0, Math.min(1, (1 + dot) / 2));
+
+        document.getElementById('tp-vec-init').textContent = `(${fmtNum(bInit.rx)}, ${fmtNum(bInit.ry)}, ${fmtNum(bInit.rz)})`;
+        document.getElementById('tp-vec-final').textContent = `(${fmtNum(bFinal.rx)}, ${fmtNum(bFinal.ry)}, ${fmtNum(bFinal.rz)})`;
+
+        const fidEl = document.getElementById('tp-fidelity');
+        fidEl.textContent = (fidelity * 100).toFixed(1) + '%';
+        fidEl.className = `text-2xl font-bold font-mono ${fidelity > 0.995 ? 'text-emerald-400' : 'text-amber-300'}`;
+
+        const measuredBoth = curSnap.measuredFlags[0] && curSnap.measuredFlags[1];
+        const m0 = curSnap.cbits[0], m1 = curSnap.cbits[1];
+        document.getElementById('tp-cbits-badge').textContent = measuredBoth ? `(${m0}, ${m1})` : 'Sin medir';
+
+        let corrText = 'Correcciones: esperando medición Bell';
+        if (measuredBoth) {
+          const opsFired = [];
+          if (m1 === 1) opsFired.push('X(q2)');
+          if (m0 === 1) opsFired.push('Z(q2)');
+          corrText = opsFired.length > 0
+            ? `Disparadas dinámicamente: ${opsFired.join(' + ')}`
+            : 'Sin corrección necesaria (m0=0, m1=0)';
+        }
+        document.getElementById('tp-corrections-status').textContent = corrText;
+      }
+
+      if (state.activePreset === 'deutsch') {
+        ['c0', 'c1', 'b0', 'b1'].forEach(k => {
+          const btn = document.getElementById(`btn-oracle-${k}`);
+          const active = state.deutschOracle === k;
+          btn.className = `oracle-btn px-2.5 py-1.5 rounded-lg text-xs font-mono border transition ${
+            active
+              ? 'bg-purple-500/25 border-purple-400 text-white shadow-[0_0_12px_rgba(168,85,247,0.3)]'
+              : 'bg-slate-900/80 border-slate-700 text-slate-300 hover:bg-slate-800'
+          }`;
+        });
+
+        const curSnap = getCurrentSnapshot();
+        const b0 = QuantumEngine.getBlochVector(curSnap.st, state.numQubits, 0);
+        const p0 = b0.p0;
+        const p1 = b0.p1;
+        const isAtEnd = state.currentStep >= state.numSteps - 1;
+
+        if (isAtEnd) {
+          const isConst = p0 > 0.5;
+          document.getElementById('deutsch-m0').textContent = isConst ? '|0⟩' : '|1⟩';
+          document.getElementById('deutsch-prob').textContent = `${((isConst ? p0 : p1) * 100).toFixed(1)}%`;
+          const vEl = document.getElementById('deutsch-verdict');
+          vEl.textContent = isConst ? 'FUNCIÓN CONSTANTE' : 'FUNCIÓN BALANCEADA';
+          vEl.className = `text-sm font-bold ${isConst ? 'text-emerald-400' : 'text-cyan-300'}`;
+          document.getElementById('deutsch-detail').textContent = isConst
+            ? 'q0 medido en |0⟩ (100%) ⇒ f(0) = f(1)'
+            : 'q0 medido en |1⟩ (100%) ⇒ f(0) ≠ f(1)';
+        } else {
+          document.getElementById('deutsch-m0').textContent = '⋯';
+          document.getElementById('deutsch-prob').textContent = `P(0)=${(p0 * 100).toFixed(0)}%`;
+          const vEl = document.getElementById('deutsch-verdict');
+          vEl.textContent = 'EN EJECUCIÓN...';
+          vEl.className = 'text-sm font-bold text-amber-300';
+          document.getElementById('deutsch-detail').textContent = 'Avanza a la capa final para ver interferencia';
+        }
+      }
+    }
+
+    function setTeleportState(theta, phi) {
+      buildTeleportationCircuit(theta, phi);
+      recomputeSimulation(true);
+      renderAll();
+      logTerminal('INFO', `Estado inicial |ψ⟩ de q0 actualizado: θ=${theta.toFixed(2)}, φ=${phi.toFixed(2)}.`);
+    }
+
+    function onTeleportSlider() {
+      const th = parseFloat(document.getElementById('tp-theta').value);
+      const ph = parseFloat(document.getElementById('tp-phi').value);
+      buildTeleportationCircuit(th, ph);
+      recomputeSimulation(false);
+      renderAll();
+    }
+
+    /* ------------------------------------------------------------------------
+     * 13. UTILIDADES DE CONSOLA, TOOLBAR Y RENDER GLOBAL
+     * ---------------------------------------------------------------------- */
+    function renderAll() {
+      document.getElementById('step-indicator').textContent = `Capa ${state.currentStep} / ${state.numSteps}`;
+      renderPalette();
+      renderCircuit();
+      renderBlochSpheres();
+      renderProbabilities();
+      renderAlgorithmPanels();
+      document.getElementById('script-editor').value = serializeCircuitToScript();
+    }
+
+    function logTerminal(level, message) {
+      const log = document.getElementById('terminal-log');
+      const colors = {
+        CMD: 'text-white font-semibold',
+        OK: 'text-emerald-300',
+        SIM: 'text-cyan-300',
+        INFO: 'text-slate-300',
+        ERR: 'text-rose-400'
+      };
+      const badges = {
+        CMD: '',
+        OK: '<span class="text-emerald-500 mr-1.5">[OK]</span>',
+        SIM: '<span class="text-cyan-500 mr-1.5">[SIM]</span>',
+        INFO: '<span class="text-purple-400 mr-1.5">[INFO]</span>',
+        ERR: '<span class="text-rose-500 mr-1.5">[ERR]</span>'
+      };
+      const entry = document.createElement('div');
+      entry.className = `whitespace-pre-wrap break-words ${colors[level] || 'text-slate-300'}`;
+      entry.innerHTML = (badges[level] || '') + escapeHtml(message);
+      log.appendChild(entry);
+      log.scrollTop = log.scrollHeight;
+    }
+
+    function escapeHtml(str) {
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+    }
+
+    function clearTerminalLog() {
+      document.getElementById('terminal-log').innerHTML = '';
+      logTerminal('INFO', 'Consola limpia. Escribe HELP para ver la lista de comandos.');
+    }
+
+    function switchConsoleTab(tab) {
+      state.consoleTab = tab;
+      document.getElementById('console-cli-pane').classList.toggle('hidden', tab !== 'cli');
+      document.getElementById('console-script-pane').classList.toggle('hidden', tab !== 'script');
+      document.getElementById('tab-cli').className = tab === 'cli'
+        ? 'px-2.5 py-1 rounded-lg text-xs font-mono font-semibold bg-cyan-500/15 text-cyan-300 border border-cyan-500/30 transition'
+        : 'px-2.5 py-1 rounded-lg text-xs font-mono font-medium text-slate-400 hover:text-slate-200 border border-transparent transition';
+      document.getElementById('tab-script').className = tab === 'script'
+        ? 'px-2.5 py-1 rounded-lg text-xs font-mono font-semibold bg-cyan-500/15 text-cyan-300 border border-cyan-500/30 transition'
+        : 'px-2.5 py-1 rounded-lg text-xs font-mono font-medium text-slate-400 hover:text-slate-200 border border-transparent transition';
+    }
+
+    function fillCommand(cmd) {
+      const inp = document.getElementById('cli-input');
+      inp.value = cmd;
+      inp.focus();
+      switchConsoleTab('cli');
+    }
+
+    function copyScript() {
+      const ta = document.getElementById('script-editor');
+      try {
+        ta.select();
+        document.execCommand('copy');
+        showToast('Script copiado al portapapeles.', 'success');
+      } catch (_) {
+        showToast('Selecciona el texto y presiona Ctrl+C para copiar.', 'info');
+      }
+    }
+
+    function changeQubits(delta) {
+      const next = Math.max(1, Math.min(5, state.numQubits + delta));
+      if (next === state.numQubits) return;
+      state.numQubits = next;
+      state.ops = state.ops.filter(o => [...o.controls, ...o.targets].every(q => q < next));
+      state.zones = [];
+      state.activePreset = 'blank';
+      state.lastShots = null;
+      recomputeSimulation(true);
+      renderAll();
+      logTerminal('INFO', `Registros cuánticos ajustados a ${next} qubits.`);
+    }
+
+    function changeCbits(delta) {
+      const next = Math.max(1, Math.min(5, state.numCbits + delta));
+      if (next === state.numCbits) return;
+      state.numCbits = next;
+      for (const op of state.ops) {
+        if (op.cbit !== null && op.cbit >= next) op.cbit = next - 1;
+        if (op.condBit !== null && op.condBit >= next) op.condBit = next - 1;
+      }
+      recomputeSimulation(false);
+      renderAll();
+    }
+
+    function changeSteps(delta) {
+      const maxUsed = state.ops.reduce((mx, o) => Math.max(mx, o.step + 1), 1);
+      const next = Math.max(maxUsed, Math.min(24, state.numSteps + delta));
+      if (next === state.numSteps) return;
+      state.numSteps = next;
+      recomputeSimulation(false);
+      renderAll();
+    }
+
+    function clearCircuit() {
+      state.ops = [];
+      state.zones = [];
+      state.activePreset = 'blank';
+      state.lastShots = null;
+      recomputeSimulation(true);
+      renderAll();
+      logTerminal('OK', 'Circuito reiniciado y vacío.');
+    }
+
+    function showToast(msg, type = 'info') {
+      const container = document.getElementById('toast-container');
+      const styles = {
+        success: 'bg-emerald-950/95 border-emerald-500/50 text-emerald-200',
+        error: 'bg-rose-950/95 border-rose-500/50 text-rose-200',
+        info: 'bg-slate-900/95 border-cyan-500/40 text-cyan-200'
+      };
+      const toast = document.createElement('div');
+      toast.className = `pointer-events-auto px-3.5 py-2.5 rounded-xl border text-xs font-medium shadow-xl backdrop-blur-md transition-all ${styles[type] || styles.info}`;
+      toast.textContent = msg;
+      container.appendChild(toast);
+      setTimeout(() => {
+        toast.style.opacity = '0';
+        toast.style.transform = 'translateY(-6px)';
+        setTimeout(() => toast.remove(), 250);
+      }, 3200);
+    }
+
+    /* ------------------------------------------------------------------------
+     * 14. INICIALIZACIÓN Y EVENTOS GLOBALES
+     * ---------------------------------------------------------------------- */
+    function init() {
+      // Formulario de consola CLI con historial (Flecha Arriba/Abajo)
+      const form = document.getElementById('cli-form');
+      const input = document.getElementById('cli-input');
+      form.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const val = input.value;
+        input.value = '';
+        executeCommand(val);
+      });
+      input.addEventListener('keydown', (e) => {
+        if (e.key === 'ArrowUp') {
+          e.preventDefault();
+          if (state.cmdHistory.length > 0) {
+            state.cmdHistoryIdx = Math.min(state.cmdHistory.length - 1, state.cmdHistoryIdx + 1);
+            input.value = state.cmdHistory[state.cmdHistoryIdx];
+          }
+        } else if (e.key === 'ArrowDown') {
+          e.preventDefault();
+          if (state.cmdHistoryIdx > 0) {
+            state.cmdHistoryIdx--;
+            input.value = state.cmdHistory[state.cmdHistoryIdx];
+          } else {
+            state.cmdHistoryIdx = -1;
+            input.value = '';
+          }
+        }
+      });
+
+      // Cerrar modal con Escape
+      window.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') closeModal();
+      });
+
+      // Redibujar esferas de Bloch al redimensionar pantalla
+      window.addEventListener('resize', () => redrawAllBlochCanvases());
+
+      // Mensaje de bienvenida y carga inicial del protocolo de Teleportación Cuántica
+      logTerminal('INFO', 'Q-Lab Console inicializada — Simulador de vector de estado complejo 2^n listo.');
+      logTerminal('INFO', 'Escribe HELP para ver todos los comandos o usa el editor visual y los algoritmos precargados.');
+      loadPreset('teleport', false);
+      updateGateInspector('H');
+    }
+
+    window.addEventListener('DOMContentLoaded', init);
+
+    // API pública expuesta para los handlers del DOM
+    return {
+      loadPreset,
+      selectTool,
+      resetStep,
+      prevStep,
+      nextStep,
+      runFull,
+      runShots,
+      changeQubits,
+      changeCbits,
+      changeSteps,
+      clearCircuit,
+      switchConsoleTab,
+      executeCommand,
+      fillCommand,
+      clearTerminalLog,
+      copyScript,
+      applyScriptEditor,
+      setVizMode,
+      renderProbabilities,
+      resetBlochCamera,
+      setTeleportState,
+      onTeleportSlider,
+      closeModal,
+      saveModalOp,
+      deleteModalOp,
+      syncModalAngleFromSlider,
+      syncModalAngleFromText,
+      setModalAnglePreset
+    };
+  })();
+  </script>
+</body>
+</html>
