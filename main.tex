@@ -34,6 +34,37 @@ Construye una interfaz web que despliega una consola donde se puedan crear circu
   \item \textbf{RY($\theta$):} Rota el estado un ángulo $\theta$ alrededor del eje $Y$ de la esfera de Bloch.
 \end{itemize}
 
+\section{Estado actual del emulador}
+El punto de partida es el emulador Kuantum, desarrollado el semestre anterior (repositorio \texttt{Cuantum-Computing-Simulator}). Consta de una API en Python y una interfaz web, desplegables mediante Docker.
+
+\subsection{Arquitectura}
+\begin{itemize}
+  \item \textbf{Backend:} API REST con FastAPI (puerto 8000). La simulación se delega en Qiskit y Qiskit Aer: el circuito llega como una lista de instrucciones en formato JSON y se traduce a un \texttt{QuantumCircuit}.
+  \item \textbf{Frontend:} aplicación Astro (puerto 4321) con páginas de inicio, teoría (accesible como \textbf{Aprender}), simulador y documentación, que consume la API mediante \texttt{fetch}.
+  \item \textbf{Despliegue:} \texttt{docker-compose} con un contenedor por servicio. Las compuertas personalizadas se almacenan en \texttt{backend/data}, que se conserva como volumen.
+\end{itemize}
+
+\subsection{Funcionalidades disponibles}
+\begin{itemize}
+  \item \textbf{Configuración:} número de cúbits y de registros clásicos, estado inicial (cadena de bits), modo de ejecución (\textit{Shot} o \textit{Statevector}), número de \textit{shots} y modelo de ruido (ninguno, \textit{depolarizing} o \textit{thermal relaxation}).
+  \item \textbf{Compuertas básicas:} H, X, Y, Z, S, T, RX, RY, RZ, CX, SWAP, medición (M) e INIT (inicialización del estado mediante amplitudes).
+  \item \textbf{Compuertas compuestas:} Toffoli (CXX), semisumador, sumador completo (con una versión antigua), QFT, IQFT y exponenciación modular (MOD\_EXP, solo para $N=15$).
+  \item \textbf{Editor de circuitos:} cuadrícula con arrastrar y soltar sobre las líneas de cada cúbit, selección en dos clics de control y objetivo para las compuertas de dos cúbits, y eliminación individual de compuertas.
+  \item \textbf{Compuertas personalizadas:} el circuito actual puede guardarse con un nombre y reutilizarse desde la paleta. Se almacenan en un archivo JSON del servidor y pueden contener otras compuertas, incluidas personalizadas.
+  \item \textbf{Resultados:} estado dominante, histograma de probabilidades, tabla de amplitudes y esfera de Bloch 3D interactiva por cúbit, con animación de la transición entre el estado inicial y el actual.
+  \item \textbf{Teoría:} tres lecciones en Markdown (introducción, compuertas básicas y uso del simulador).
+\end{itemize}
+
+\subsection{Aspectos no disponibles}
+\begin{itemize}
+  \item \textbf{Ejecución:} es manual, mediante el botón de ejecución, y el resultado aparece completo al finalizar. No hay avance capa por capa ni control de la velocidad de la animación.
+  \item \textbf{Control clásico:} existe la medición, pero no compuertas condicionadas a un registro clásico ni ciclos.
+  \item \textbf{Compuertas personalizadas:} la interfaz solo muestra su nombre. No permite consultar las compuertas que contienen ni eliminarlas, aunque la API ofrece el borrado.
+  \item \textbf{Compuertas faltantes:} I, $S^\dagger$, $T^\dagger$, SX y $P(\varphi)$, incluidas en los requerimientos.
+  \item \textbf{Contenido de Aprender:} no hay circuitos de ejemplo precargados ni experimentos de interferometría.
+  \item \textbf{Pruebas automáticas:} la única prueba (\texttt{test\_hadamard.py}) imprime el resultado sin verificarlo.
+\end{itemize}
+
 \section{Algoritmos}
 \subsection{Teleportación cuántica (3 qubits)}
     El circuito completo consta de:
