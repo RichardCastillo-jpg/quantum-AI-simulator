@@ -12,7 +12,7 @@
 \section{Descripción}
 Construye una interfaz web que despliega una consola donde se puedan crear circuitos cuánticos.
 
-\section{Requerimientos}
+\section{Requerimientos del circuito}
 \subsection{Compuertas necesarias}
 \begin{itemize}
   \item \textbf{Hadamard (H):} Crea superposición, llevando $\ket{0}$ a $\frac{\ket{0}+\ket{1}}{\sqrt{2}}$.
@@ -33,6 +33,18 @@ Construye una interfaz web que despliega una consola donde se puedan crear circu
   \item \textbf{RX($\theta$):} Rota el estado un ángulo $\theta$ alrededor del eje $X$ de la esfera de Bloch.
   \item \textbf{RY($\theta$):} Rota el estado un ángulo $\theta$ alrededor del eje $Y$ de la esfera de Bloch.
 \end{itemize}
+
+\subsection{Subcircuitos}
+La interfaz debe permitir crear, organizar y reutilizar subcircuitos para reducir la complejidad visual del lienzo principal y encapsular rutinas frecuentes.
+
+\begin{itemize}
+  \item \textbf{Creación y guardado (\texttt{Guardar subcircuito}):} A partir de una selección de compuertas o del circuito de trabajo, el usuario debe poder guardar un subcircuito con nombre, descripción y número de cúbits requeridos, admitiendo la composición de otros subcircuitos o compuertas existentes.
+  \item \textbf{Inserción en la consola:} Desde la biblioteca de subcircuitos, el usuario debe poder arrastrar un subcircuito hacia la consola y asignarlo a los cúbits destino correspondientes, con validación de compatibilidad respecto al número de cúbits disponibles en el circuito activo.
+  \item \textbf{Visualización (\texttt{Visualizar subcircuito}):} El usuario debe poder alternar entre la vista compacta del bloque en el circuito principal y una vista de inspección (modal o panel dedicado) que muestre sus compuertas internas, el orden de capas y el flujo de los cúbits.
+  \item \textbf{Edición y gestión (\texttt{Editar subcircuito}):} El usuario debe poder modificar la definición interna de un subcircuito guardado (añadir, reordenar o eliminar compuertas) y gestionar su ciclo de vida (renombrar y eliminar). Los cambios aplicados deben actualizar las instancias existentes y disparan la reejecución automática
+      en el motor de simulación.
+\end{itemize}
+
 
 \section{Estado actual del emulador}
 El punto de partida es el emulador Kuantum, desarrollado el semestre anterior (repositorio \texttt{Cuantum-Computing-Simulator}). Consta de una API en Python y una interfaz web, desplegables mediante Docker.
@@ -66,6 +78,7 @@ El punto de partida es el emulador Kuantum, desarrollado el semestre anterior (r
 \end{itemize}
 
 \section{Algoritmos}
+La interfaz debe contar con los siguientes algoritmos precargados (Preferiblemente en una sección aparte para que puedan ser visualizados o ejecutados en cualquier momento).
 \subsection{Teleportación cuántica (3 qubits)}
     El circuito completo consta de:
     \begin{itemize}
@@ -183,4 +196,3 @@ Para garantizar que la ejecución automática no degrade la experiencia de usuar
     \item \textbf{Control opcional de pausa:} Aunque la ejecución automática estará habilitada por defecto en todo el programa, se contemplará un indicador discreto que permita pausar temporalmente la actualización en caso de que el usuario construya circuitos extensos que requieran mayor tiempo de cómputo.
 \end{itemize}
 \end{document}
-
