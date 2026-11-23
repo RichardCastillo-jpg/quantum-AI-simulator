@@ -14,7 +14,7 @@
 \section{Descripción}
 Construye una interfaz web que despliega una consola donde se puedan crear circuitos cuánticos.
 
-\section{Requerimientos del circuito}
+\section{Requerimientos}
 \subsection{Compuertas necesarias}
 \begin{itemize}
   \item \textbf{Hadamard (H):} Crea superposición, llevando $\ket{0}$ a $\frac{\ket{0}+\ket{1}}{\sqrt{2}}$.
@@ -63,10 +63,12 @@ La interfaz debe mostrar el estado dominante, el histograma de probabilidades, l
 Debe existir una sección de teoría (\textbf{Aprender}) que debe contener tres lecciones principales en Markdown: introducción, compuertas básicas (nombre y explicación del funcionamiento de cada una) y uso del simulador. Más adelante se describen funciones adicionales de este módulo.
 
 \subsection{Arquitectura}
+El sistema mantiene una arquitectura cliente-servidor desacoplada y contenerizada, compuesta por una interfaz web y una API de simulación:
+
 \begin{itemize}
-  \item \textbf{Backend:} API REST con FastAPI (puerto 8000). La simulación se delega en Qiskit y Qiskit Aer: el circuito llega como una lista de instrucciones en formato JSON y se traduce a un \texttt{QuantumCircuit}.
-  \item \textbf{Frontend:} Aplicación Astro (puerto 4321) con páginas de inicio, teoría (accesible como \textbf{Aprender}), simulador y documentación, que consume la API mediante \texttt{fetch}.
-  \item \textbf{Despliegue:} \texttt{docker-compose} con un contenedor por servicio. Los subcircuitos guardados se almacenan en un volumen.
+  \item \textbf{Backend (FastAPI + Qiskit / Qiskit Aer, puerto 8000):} Expone la API REST encargada de validar la estructura del circuito, traducir las instrucciones JSON (incluyendo subcircuitos, ciclos \texttt{for}, parámetros y configuración de ruido) a un objeto \texttt{QuantumCircuit} de Qiskit y ejecutar la simulación en Qiskit Aer según el modo seleccionado (\textit{Shot} o \textit{Statevector}). También gestiona las operaciones CRUD sobre los subcircuitos persistidos.
+  \item \textbf{Frontend (Astro, puerto 4321):} Proporciona las vistas de inicio, \textbf{Aprender} (lecciones en Markdown y simuladores interactivos de óptica cuántica), simulador principal y documentación. Consume la API mediante \texttt{fetch}, coordina la ejecución reactiva con control de frecuencia y cancelación de peticiones obsoletas, y sincroniza las visualizaciones de resultados.
+  \item \textbf{Persistencia y despliegue (\texttt{docker-compose}):} Orquesta un contenedor para el backend y otro para el frontend dentro de una misma red, configurando variables de entorno para la comunicación entre servicios y políticas de CORS. Los subcircuitos guardados se almacenan en formato JSON en un directorio de datos montado mediante un volumen persistente para conservarlos entre reinicios de los contenedores.
 \end{itemize}
 
 \section{Algoritmos}
