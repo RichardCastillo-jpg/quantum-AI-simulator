@@ -1,0 +1,18 @@
+services:
+  api:
+    build: ./backend
+    ports: ["8000:8000"]
+    environment:
+      DATA_DIR: /data
+      CORS_ORIGINS: http://localhost:4321,http://127.0.0.1:4321
+    volumes: [subcircuitos:/data]
+    init: true
+  web:
+    build:
+      context: ./frontend
+      args:
+        PUBLIC_API_URL: ${PUBLIC_API_URL:-}
+    ports: ["4321:4321"]
+    depends_on: [api]
+volumes:
+  subcircuitos:

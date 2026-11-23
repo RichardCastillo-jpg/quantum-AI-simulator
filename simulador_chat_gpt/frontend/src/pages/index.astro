@@ -1,0 +1,7 @@
+---
+import {Content as Intro} from '../lessons/introduccion.md';
+import {Content as Gates} from '../lessons/compuertas.md';
+import {Content as Guide} from '../lessons/uso.md';
+import markup from '../workspace.html?raw';
+---
+<!doctype html><html lang="es"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/><meta name="api" content={import.meta.env.PUBLIC_API_URL || (import.meta.env.DEV ? 'http://localhost:8000' : '/api')}/><title>Orbital — Simulador cuántico</title><link rel="stylesheet" href="/style.css"/></head><body><Fragment set:html={markup}/><template id="intro"><Intro/></template><template id="gates"><Gates/></template><template id="guide"><Guide/></template><script is:inline type="module" src="/app.js"></script></body></html>

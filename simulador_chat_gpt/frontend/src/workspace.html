@@ -1,0 +1,115 @@
+<header>
+  <a class="brand" href="#inicio"><i>◎</i> Orbital</a>
+  <nav>
+    <a href="#inicio">Inicio</a><a href="#simulador">Simulador</a
+    ><a href="#aprender">Aprender</a><a href="#docs">Documentación</a>
+  </nav>
+  <span class="wordmark">QUANTUM LAB</span>
+</header>
+<main>
+  <section id="simulador">
+    <div class="mast">
+      <div>
+        <small>LABORATORIO CUÁNTICO</small>
+        <h1>Simulador de circuitos<span>.</span></h1>
+      </div>
+      <button id="config">⚙ Configuración</button>
+    </div>
+    <div class="layout">
+      <aside class="card palette">
+        <small>HERRAMIENTAS</small>
+        <h2>Compuertas</h2>
+        <div id="palette"></div>
+        <hr />
+        <h3>Subcircuitos</h3>
+        <div id="library"></div>
+        <button id="save">＋ Guardar subcircuito</button>
+      </aside>
+      <div class="work">
+        <article class="card">
+          <div class="head">
+            <div>
+              <small>EDITOR DE CIRCUITOS</small>
+              <h2 id="title">Par de Bell</h2>
+            </div>
+            <button id="examples">Algoritmos ▾</button>
+          </div>
+          <div class="toolbar">
+            <button id="undo">↶ Deshacer</button
+            ><button id="loop">↻ Crear ciclo</button
+            ><button id="edit">Editar paso</button
+            ><button id="remove">Eliminar</button
+            ><button id="clear">Vaciar</button>
+          </div>
+          <div id="grid"></div>
+          <div class="foot">
+            <span id="hint"></span><button id="pause">Ⅱ Pausar</button>
+          </div>
+        </article>
+        <div class="head resulthead">
+          <h2>Resultados</h2>
+          <span id="state" role="status"></span>
+        </div>
+        <div id="results" aria-live="polite"></div>
+      </div>
+    </div>
+  </section>
+  <section id="inicio" hidden>
+    <small>ORBITAL / LABORATORIO</small>
+    <h1>Explora el estado cuántico<span>.</span></h1>
+    <p>
+      Prepara un par de Bell, cambia una compuerta y observa cómo se distribuye
+      la probabilidad.
+    </p>
+    <a class="cta" href="#simulador">Abrir simulador →</a>
+    <a href="#aprender">Explorar las lecciones</a>
+  </section>
+  <section id="aprender" hidden>
+    <small>LABORATORIO DE ÓPTICA</small>
+    <h1>Aprender<span>.</span></h1>
+    <div class="tabs" id="lessons"></div>
+    <article class="card lesson" id="lesson"></article>
+  </section>
+  <section id="docs" hidden>
+    <small>REFERENCIA</small>
+    <h1>Documentación<span>.</span></h1>
+    <article class="card lesson">
+      <h2>Convenciones del circuito</h2>
+      <p>
+        Lee los pasos de izquierda a derecha. La cadena inicial y los resultados
+        siguen el orden qₙ₋₁ … q₀. El cable superior es q₀. Todos los ángulos se
+        expresan en radianes.
+      </p>
+      <h3>Modos de ejecución</h3>
+      <p>
+        Statevector presenta las probabilidades exactas. Shot añade frecuencias
+        de mediciones finales y el contenido de la memoria clásica. Una medición
+        intermedia o el ruido pueden producir un estado mixto. En ese caso la
+        esfera representa el vector reducido y la tabla muestra poblaciones.
+      </p>
+      <h3>API REST</h3>
+      <p>
+        POST /simulate valida y ejecuta un circuito. GET y POST /subcircuits
+        consultan y crean bloques. PUT y DELETE /subcircuits/{id} actualizan y
+        eliminan definiciones.
+      </p>
+      <h3>Ruido</h3>
+      <p>
+        Después de cada compuerta unitaria, cada cúbit implicado recibe un canal
+        independiente. El canal despolarizante usa λ = 0,01. La relajación
+        térmica usa T₁ = 50 µs, T₂ = 70 µs y duración de 200 ns.
+      </p>
+    </article>
+  </section>
+</main>
+<dialog id="modal">
+  <form id="form">
+    <div class="head">
+      <h2 id="modalTitle"></h2>
+      <button type="button" id="close" aria-label="Cerrar">×</button>
+    </div>
+    <div id="fields"></div>
+    <p class="error" id="error" role="alert"></p>
+    <button class="cta" id="submit">Aplicar</button>
+  </form>
+</dialog>
