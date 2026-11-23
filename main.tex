@@ -36,14 +36,14 @@ Construye una interfaz web que despliega una consola donde se puedan crear circu
   \item \textbf{RY($\theta$):} Rota el estado un ángulo $\theta$ alrededor del eje $Y$ de la esfera de Bloch.
 \end{itemize}
 
+\subsection{Ciclo for}
+Debe existir una opción que permita añadir ciclos for dentro de determinadas partes del circuito, con el fin de poder realizar secuencias sin necesidad de sobrecargar de compuertas el circuito actual.
+
 \subsection{Configuración}
 El usuario debe poder configurar el número de cúbits y de registros clásicos, el estado inicial (cadena de bits), el modo de ejecución (\textit{Shot} o \textit{Statevector}), el número de \textit{shots} y el modelo de ruido (ninguno, \textit{depolarizing} o \textit{thermal relaxation}).
 
 \subsection{Editor de circuitos}
 El editor debe ser una cuadrícula con arrastrar y soltar sobre las líneas de cada cúbit, con selección en dos clics de control y objetivo para las compuertas de dos cúbits y con eliminación individual de compuertas.
-
-\subsection{Resultados}
-La interfaz debe mostrar el estado dominante, el histograma de probabilidades, la tabla de amplitudes y una esfera de Bloch 3D interactiva por cúbit, con animación de la transición entre el estado inicial y el actual.
 
 \subsection{Subcircuitos}
 La interfaz debe permitir crear, organizar y reutilizar subcircuitos para reducir la complejidad visual del lienzo principal y encapsular rutinas frecuentes.
@@ -56,19 +56,17 @@ La interfaz debe permitir crear, organizar y reutilizar subcircuitos para reduci
       en el motor de simulación.
 \end{itemize}
 
+\subsection{Resultados}
+La interfaz debe mostrar el estado dominante, el histograma de probabilidades, la tabla de amplitudes y una esfera de Bloch 3D interactiva por cúbit, con animación de la transición entre el estado inicial y el actual.
 
 \subsection{Teoría}
-La sección de teoría (\textbf{Aprender}) debe conservar sus tres lecciones en Markdown: introducción, compuertas básicas y uso del simulador.
-
-\section{Estado actual del emulador}
-Trabaja sobre el emulador Kuantum, desarrollado el semestre anterior. No lo reescribas desde cero: clona el repositorio \url{https://github.com/Dreamerend3008/Cuantum-Computing-Simulator} y extiéndelo. Los requerimientos de este documento describen el comportamiento final esperado, incluido lo que Kuantum ya implementa; antes de cada cambio, revisa el código para identificar qué existe y qué falta, y no dupliques funcionalidades.
+Debe existir una sección de teoría (\textbf{Aprender}) que debe contener tres lecciones principales en Markdown: introducción, compuertas básicas (nombre y explicación del funcionamiento de cada una) y uso del simulador. Más adelante se describen funciones adicionales de este módulo.
 
 \subsection{Arquitectura}
-Respeta la arquitectura existente y no cambies de tecnologías:
 \begin{itemize}
   \item \textbf{Backend:} API REST con FastAPI (puerto 8000). La simulación se delega en Qiskit y Qiskit Aer: el circuito llega como una lista de instrucciones en formato JSON y se traduce a un \texttt{QuantumCircuit}.
-  \item \textbf{Frontend:} aplicación Astro (puerto 4321) con páginas de inicio, teoría (accesible como \textbf{Aprender}), simulador y documentación, que consume la API mediante \texttt{fetch}.
-  \item \textbf{Despliegue:} \texttt{docker-compose} con un contenedor por servicio. Los subcircuitos guardados (en Kuantum, compuertas personalizadas) se almacenan en \texttt{backend/data}, que se conserva como volumen.
+  \item \textbf{Frontend:} Aplicación Astro (puerto 4321) con páginas de inicio, teoría (accesible como \textbf{Aprender}), simulador y documentación, que consume la API mediante \texttt{fetch}.
+  \item \textbf{Despliegue:} \texttt{docker-compose} con un contenedor por servicio. Los subcircuitos guardados se almacenan en un volumen.
 \end{itemize}
 
 \section{Algoritmos}
@@ -191,6 +189,10 @@ Para garantizar que la ejecución automática no degrade la experiencia de usuar
 \end{itemize}
 
 \section{Mejora libre}
-Una vez cumplidos todos los requerimientos anteriores, realizar un cambio o una adición a elección: cualquier cosa que considere que maximiza la calidad y el desempeño del resultado final. La decisión es completamente libre. Al terminar, indicar brevemente qué se hizo y por qué.
+Una vez cumplidos todos los requerimientos anteriores, realizar un cambio o una adición a elección: cualquier cosa que considere que maximiza la calidad y el desempeño del resultado final.
+
+\section{Archivo README}
+Se debe generar un archivo README.md donde se especifique explicitamente: arquitectura del sistema, cuál fue la mejora adicional realizada y guía de ejecución con docker.
+
 
 \end{document}
