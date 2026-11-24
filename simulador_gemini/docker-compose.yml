@@ -1,0 +1,29 @@
+services:
+  backend:
+    build: ./backend
+    container_name: qulab-backend
+    ports:
+      - "8000:8000"
+    environment:
+      - DATA_DIR=/app/data
+      - CORS_ORIGINS=http://localhost:4321
+    volumes:
+      - ./data:/app/data
+    networks:
+      - quantum-net
+
+  frontend:
+    build: ./frontend
+    container_name: qulab-frontend
+    ports:
+      - "4321:4321"
+    environment:
+      - PUBLIC_API_URL=http://localhost:8000
+    depends_on:
+      - backend
+    networks:
+      - quantum-net
+
+networks:
+  quantum-net:
+    driver: bridge

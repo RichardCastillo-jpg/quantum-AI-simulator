@@ -1,0 +1,3741 @@
+<!DOCTYPE html>
+<html lang="es" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>QuLab — Emulador Interactivo de Circuitos y Óptica Cuántica</title>
+  <script src="https://cdn.tailwindcss.com/3.4.17"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script src="https://unpkg.com/lucide@0.460.0/dist/umd/lucide.min.js"></script>
+  <style>
+    :root {
+      color-scheme: dark;
+    }
+    body {
+      font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background-color: #070b14;
+      color: #e2e8f0;
+    }
+    .font-mono-code {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+    }
+    /* Custom scrollbars */
+    ::-webkit-scrollbar { width: 7px; height: 7px; }
+    ::-webkit-scrollbar-track { background: #0d1424; }
+    ::-webkit-scrollbar-thumb { background: #263554; border-radius: 9999px; }
+    ::-webkit-scrollbar-thumb:hover { background: #3b5280; }
+
+    /* Circuit grid cell transitions */
+    .circuit-cell {
+      transition: background-color 0.12s ease, border-color 0.12s ease;
+    }
+    .circuit-cell.drag-over {
+      background-color: rgba(56, 189, 248, 0.18) !important;
+      outline: 1.5px dashed #38bdf8;
+    }
+    .circuit-cell.active-step {
+      background-color: rgba(99, 102, 241, 0.12);
+    }
+    .gate-chip {
+      user-select: none;
+      transition: transform 0.12s ease, box-shadow 0.12s ease;
+    }
+    .gate-chip:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
+    }
+    .glass-panel {
+      background: linear-gradient(180deg, rgba(15, 23, 42, 0.88) 0%, rgba(11, 18, 34, 0.94) 100%);
+      border: 1px solid rgba(51, 65, 85, 0.65);
+    }
+    /* Markdown lesson typography */
+    .lesson-prose h2 { font-size: 1.35rem; font-weight: 700; color: #f8fafc; margin-top: 1.25rem; margin-bottom: 0.6rem; }
+    .lesson-prose h3 { font-size: 1.05rem; font-weight: 600; color: #7dd3fc; margin-top: 1rem; margin-bottom: 0.45rem; }
+    .lesson-prose p { color: #cbd5e1; line-height: 1.65; margin-bottom: 0.75rem; font-size: 0.94rem; }
+    .lesson-prose ul { list-style-type: disc; padding-left: 1.4rem; margin-bottom: 0.85rem; color: #cbd5e1; font-size: 0.93rem; }
+    .lesson-prose li { margin-bottom: 0.35rem; }
+    .lesson-prose code { background: #1e293b; color: #38bdf8; padding: 0.12rem 0.35rem; border-radius: 0.3rem; font-size: 0.85em; }
+    .lesson-prose blockquote { border-left: 3px solid #38bdf8; padding-left: 0.9rem; color: #94a3b8; font-style: italic; margin: 0.8rem 0; }
+    .lesson-prose table { width: 100%; border-collapse: collapse; margin: 0.9rem 0; font-size: 0.86rem; }
+    .lesson-prose th { background: #1e293b; color: #f1f5f9; text-align: left; padding: 0.5rem 0.7rem; border: 1px solid #334155; }
+    .lesson-prose td { padding: 0.48rem 0.7rem; border: 1px solid #1e293b; color: #cbd5e1; }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col selection:bg-sky-500/30 selection:text-sky-200">
+
+  <!-- TOP NAVIGATION BAR -->
+  <header class="sticky top-0 z-40 border-b border-slate-800/80 bg-[#070b14]/95 backdrop-blur-md">
+    <div class="max-w-[1600px] mx-auto px-3 sm:px-5 h-14 flex items-center justify-between gap-2">
+      <!-- Brand -->
+      <div class="flex items-center gap-2.5 shrink-0">
+        <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-sky-400 via-indigo-500 to-fuchsia-500 flex items-center justify-center shadow-lg shadow-indigo-500/20">
+          <i data-lucide="atom" class="w-5 h-5 text-white"></i>
+        </div>
+        <div class="leading-tight">
+          <span class="font-bold tracking-tight text-slate-100 text-sm sm:text-base">QuLab</span>
+          <span class="hidden md:inline-block ml-1.5 text-[11px] font-medium px-1.5 py-0.5 rounded bg-sky-500/15 text-sky-300 border border-sky-500/30">Circuitos &amp; Óptica Cuántica</span>
+        </div>
+      </div>
+
+      <!-- Main Tabs -->
+      <nav class="flex items-center gap-1 bg-slate-900/90 p-1 rounded-xl border border-slate-800" aria-label="Navegación principal">
+        <button data-tab="simulator" class="main-tab-btn px-2.5 sm:px-3.5 py-1.5 rounded-lg text-xs sm:text-sm font-medium flex items-center gap-1.5 transition bg-sky-500/20 text-sky-300 border border-sky-500/30">
+          <i data-lucide="cpu" class="w-4 h-4"></i><span>Simulador</span>
+        </button>
+        <button data-tab="algorithms" class="main-tab-btn px-2.5 sm:px-3.5 py-1.5 rounded-lg text-xs sm:text-sm font-medium flex items-center gap-1.5 transition text-slate-400 hover:text-slate-200 border border-transparent">
+          <i data-lucide="sparkles" class="w-4 h-4"></i><span>Algoritmos</span>
+        </button>
+        <button data-tab="learn" class="main-tab-btn px-2.5 sm:px-3.5 py-1.5 rounded-lg text-xs sm:text-sm font-medium flex items-center gap-1.5 transition text-slate-400 hover:text-slate-200 border border-transparent">
+          <i data-lucide="book-open" class="w-4 h-4"></i><span>Aprende</span>
+        </button>
+        <button data-tab="docs" class="main-tab-btn px-2.5 sm:px-3.5 py-1.5 rounded-lg text-xs sm:text-sm font-medium flex items-center gap-1.5 transition text-slate-400 hover:text-slate-200 border border-transparent">
+          <i data-lucide="layers" class="w-4 h-4"></i><span class="hidden sm:inline">Arquitectura</span>
+        </button>
+      </nav>
+
+      <!-- Reactive Execution Indicator -->
+      <div class="flex items-center gap-2 shrink-0">
+        <div id="autoExecBadge" class="hidden sm:flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-300 border border-emerald-500/30">
+          <span id="autoExecDot" class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+          <span id="autoExecLabel">Auto-ejecución</span>
+        </div>
+        <button id="toggleAutoExecBtn" title="Pausar o reanudar la ejecución automática reactiva" class="px-2.5 py-1.5 rounded-lg text-xs font-medium bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 flex items-center gap-1.5 transition">
+          <i id="autoExecIcon" data-lucide="pause" class="w-3.5 h-3.5"></i>
+          <span class="hidden md:inline" id="autoExecBtnText">Pausar</span>
+        </button>
+        <button id="manualRunBtn" class="hidden px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-sky-500 hover:bg-sky-400 text-slate-950 flex items-center gap-1 transition">
+          <i data-lucide="play" class="w-3.5 h-3.5"></i><span>Ejecutar</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- TOAST NOTIFICATION -->
+  <div id="toastContainer" class="fixed bottom-4 right-4 z-50 flex flex-col gap-2 pointer-events-none"></div>
+
+  <!-- MAIN CONTENT -->
+  <main class="flex-1 max-w-[1600px] w-full mx-auto px-3 sm:px-5 py-4">
+
+    <!-- ==================== VIEW 1: SIMULATOR ==================== -->
+    <section id="view-simulator" class="space-y-4">
+
+      <!-- Configuration Bar -->
+      <div class="glass-panel rounded-2xl p-3.5 flex flex-wrap items-center gap-3 justify-between">
+        <div class="flex flex-wrap items-center gap-3">
+          <!-- Qubits -->
+          <div class="flex items-center gap-1.5 bg-slate-900/90 px-2.5 py-1.5 rounded-xl border border-slate-800">
+            <label for="cfgQubits" class="text-xs text-slate-400 font-medium">Cúbits</label>
+            <select id="cfgQubits" class="bg-slate-800 text-slate-100 text-xs font-semibold rounded-lg px-2 py-1 border border-slate-700 focus:outline-none focus:border-sky-400">
+              <option value="1">1</option>
+              <option value="2">2</option>
+              <option value="3" selected>3</option>
+              <option value="4">4</option>
+              <option value="5">5</option>
+              <option value="6">6</option>
+            </select>
+          </div>
+          <!-- Classical Registers -->
+          <div class="flex items-center gap-1.5 bg-slate-900/90 px-2.5 py-1.5 rounded-xl border border-slate-800">
+            <label for="cfgCbits" class="text-xs text-slate-400 font-medium">Reg. Clásicos</label>
+            <select id="cfgCbits" class="bg-slate-800 text-slate-100 text-xs font-semibold rounded-lg px-2 py-1 border border-slate-700 focus:outline-none focus:border-sky-400">
+              <option value="1">1</option>
+              <option value="2">2</option>
+              <option value="3" selected>3</option>
+              <option value="4">4</option>
+              <option value="5">5</option>
+              <option value="6">6</option>
+            </select>
+          </div>
+          <!-- Initial State -->
+          <div class="flex items-center gap-1.5 bg-slate-900/90 px-2.5 py-1.5 rounded-xl border border-slate-800">
+            <label for="cfgInitState" class="text-xs text-slate-400 font-medium">Estado inicial</label>
+            <span class="text-xs text-sky-400 font-mono-code">|</span>
+            <input id="cfgInitState" type="text" value="000" maxlength="6" class="w-16 bg-slate-800 text-sky-300 font-mono-code text-xs font-semibold rounded-lg px-2 py-1 border border-slate-700 focus:outline-none focus:border-sky-400 tracking-widest text-center" />
+            <span class="text-xs text-sky-400 font-mono-code">⟩</span>
+          </div>
+          <!-- Execution Mode -->
+          <div class="flex items-center gap-1.5 bg-slate-900/90 px-2.5 py-1.5 rounded-xl border border-slate-800">
+            <label for="cfgMode" class="text-xs text-slate-400 font-medium">Modo</label>
+            <select id="cfgMode" class="bg-slate-800 text-slate-100 text-xs font-semibold rounded-lg px-2 py-1 border border-slate-700 focus:outline-none focus:border-sky-400">
+              <option value="statevector" selected>Statevector</option>
+              <option value="shot">Shot</option>
+            </select>
+          </div>
+          <!-- Shots -->
+          <div id="shotsControlWrap" class="flex items-center gap-1.5 bg-slate-900/90 px-2.5 py-1.5 rounded-xl border border-slate-800 opacity-50">
+            <label for="cfgShots" class="text-xs text-slate-400 font-medium">Shots</label>
+            <input id="cfgShots" type="number" min="10" max="20000" step="100" value="1024" class="w-20 bg-slate-800 text-slate-100 text-xs font-semibold rounded-lg px-2 py-1 border border-slate-700 focus:outline-none focus:border-sky-400" />
+          </div>
+          <!-- Noise Model -->
+          <div class="flex items-center gap-1.5 bg-slate-900/90 px-2.5 py-1.5 rounded-xl border border-slate-800">
+            <label for="cfgNoise" class="text-xs text-slate-400 font-medium">Ruido</label>
+            <select id="cfgNoise" class="bg-slate-800 text-slate-100 text-xs font-semibold rounded-lg px-2 py-1 border border-slate-700 focus:outline-none focus:border-sky-400">
+              <option value="none" selected>Ninguno</option>
+              <option value="depolarizing">Depolarizing</option>
+              <option value="thermal">Thermal Relaxation</option>
+            </select>
+            <div id="noiseStrengthWrap" class="hidden flex items-center gap-1.5 pl-1 border-l border-slate-700">
+              <span id="noiseParamLabel" class="text-[11px] text-amber-300 font-mono-code">p=0.05</span>
+              <input id="cfgNoiseParam" type="range" min="0.01" max="0.35" step="0.01" value="0.05" class="w-20 accent-amber-400" />
+            </div>
+          </div>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="flex flex-wrap items-center gap-2">
+          <button id="openForLoopModalBtn" class="px-2.5 py-1.5 rounded-lg text-xs font-medium bg-violet-500/15 hover:bg-violet-500/25 text-violet-300 border border-violet-500/35 flex items-center gap-1.5 transition">
+            <i data-lucide="repeat" class="w-3.5 h-3.5"></i><span>Ciclo for</span>
+          </button>
+          <button id="openSaveSubModalBtn" class="px-2.5 py-1.5 rounded-lg text-xs font-medium bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 border border-emerald-500/35 flex items-center gap-1.5 transition">
+            <i data-lucide="package-plus" class="w-3.5 h-3.5"></i><span>Guardar subcircuito</span>
+          </button>
+          <button id="openQasmModalBtn" class="px-2.5 py-1.5 rounded-lg text-xs font-medium bg-sky-500/15 hover:bg-sky-500/25 text-sky-300 border border-sky-500/35 flex items-center gap-1.5 transition">
+            <i data-lucide="code-2" class="w-3.5 h-3.5"></i><span>QASM / Qiskit</span>
+          </button>
+          <button id="clearCircuitBtn" class="px-2.5 py-1.5 rounded-lg text-xs font-medium bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 border border-rose-500/30 flex items-center gap-1.5 transition">
+            <i data-lucide="trash-2" class="w-3.5 h-3.5"></i><span>Limpiar</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Palette + Circuit Editor + Subcircuits -->
+      <div class="grid grid-cols-1 xl:grid-cols-12 gap-4">
+        <!-- Left Sidebar: Gates & Subcircuits -->
+        <aside class="xl:col-span-3 space-y-4">
+          <!-- Gate Palette -->
+          <div class="glass-panel rounded-2xl p-3.5">
+            <div class="flex items-center justify-between mb-2.5">
+              <h2 class="text-xs font-bold uppercase tracking-wider text-slate-300 flex items-center gap-1.5">
+                <i data-lucide="grid" class="w-3.5 h-3.5 text-sky-400"></i> Paleta de Compuertas
+              </h2>
+              <span class="text-[10px] text-slate-500">Arrastra o haz clic</span>
+            </div>
+            <div id="gatePalette" class="grid grid-cols-4 sm:grid-cols-6 xl:grid-cols-4 gap-1.5"></div>
+            <p class="mt-2.5 text-[11px] text-slate-400 leading-relaxed">
+              Arrastra una compuerta a la cuadrícula o selecciónala y haz clic en una celda. Para <span class="text-sky-300 font-semibold">CNOT / SWAP</span> usa 2 clics (control y objetivo); para <span class="text-fuchsia-300 font-semibold">CCNOT</span> usa 3 clics.
+            </p>
+          </div>
+
+          <!-- Subcircuit Library -->
+          <div class="glass-panel rounded-2xl p-3.5">
+            <div class="flex items-center justify-between mb-2.5">
+              <h2 class="text-xs font-bold uppercase tracking-wider text-slate-300 flex items-center gap-1.5">
+                <i data-lucide="blocks" class="w-3.5 h-3.5 text-emerald-400"></i> Subcircuitos
+              </h2>
+              <span id="subcircuitCountBadge" class="text-[10px] px-1.5 py-0.5 rounded bg-slate-800 text-slate-400">0</span>
+            </div>
+            <div id="subcircuitLibrary" class="space-y-2 max-h-60 overflow-y-auto pr-1"></div>
+          </div>
+        </aside>
+
+        <!-- Center/Right: Circuit Grid & Active Loops -->
+        <div class="xl:col-span-9 space-y-4">
+          <div class="glass-panel rounded-2xl p-3.5">
+            <!-- Editor Header + Two-Click Banner -->
+            <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
+              <div class="flex items-center gap-2">
+                <h2 class="text-sm font-bold text-slate-100 flex items-center gap-1.5">
+                  <i data-lucide="sliders-horizontal" class="w-4 h-4 text-sky-400"></i>
+                  Editor de Circuito Cuántico
+                </h2>
+                <span id="activeCircuitTitle" class="text-xs px-2 py-0.5 rounded-full bg-indigo-500/15 text-indigo-300 border border-indigo-500/30">Circuito personalizado</span>
+              </div>
+              <div class="flex items-center gap-2">
+                <button id="addColBtn" class="px-2 py-1 rounded-lg text-xs bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 flex items-center gap-1">
+                  <i data-lucide="plus" class="w-3.5 h-3.5"></i> Capa
+                </button>
+                <button id="remColBtn" class="px-2 py-1 rounded-lg text-xs bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 flex items-center gap-1">
+                  <i data-lucide="minus" class="w-3.5 h-3.5"></i> Capa
+                </button>
+              </div>
+            </div>
+
+            <!-- Multi-qubit selection banner -->
+            <div id="multiSelectBanner" class="hidden mb-3 px-3 py-2 rounded-xl bg-sky-500/15 border border-sky-400/40 flex items-center justify-between gap-2 text-xs text-sky-200">
+              <div class="flex items-center gap-2">
+                <i data-lucide="mouse-pointer-click" class="w-4 h-4 text-sky-400 shrink-0"></i>
+                <span id="multiSelectText">Selecciona el cúbit objetivo en la misma columna.</span>
+              </div>
+              <button id="cancelMultiSelectBtn" class="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 text-[11px] font-medium">Cancelar</button>
+            </div>
+
+            <!-- Active For Loops Strip -->
+            <div id="forLoopsBar" class="hidden mb-3 flex flex-wrap items-center gap-2"></div>
+
+            <!-- Circuit Canvas Grid -->
+            <div class="overflow-x-auto pb-2">
+              <div id="circuitGrid" class="inline-block min-w-full"></div>
+            </div>
+
+            <!-- Mejora Libre: Time-Step Scrubber (Inspección paso a paso) -->
+            <div class="mt-3 pt-3 border-t border-slate-800/80 flex flex-wrap items-center justify-between gap-3">
+              <div class="flex items-center gap-2.5 flex-1 min-w-[220px]">
+                <span class="text-xs font-semibold text-indigo-300 flex items-center gap-1 shrink-0">
+                  <i data-lucide="step-forward" class="w-3.5 h-3.5"></i> Paso a paso:
+                </span>
+                <input id="stepScrubber" type="range" min="0" max="10" value="10" class="flex-1 accent-indigo-400" />
+                <span id="stepScrubberLabel" class="text-xs font-mono-code text-slate-300 w-24 text-right shrink-0">Capa final</span>
+              </div>
+              <div class="flex items-center gap-1.5">
+                <button id="stepPlayBtn" class="px-2.5 py-1 rounded-lg text-xs font-medium bg-indigo-500/20 hover:bg-indigo-500/30 text-indigo-200 border border-indigo-500/40 flex items-center gap-1">
+                  <i data-lucide="play-circle" class="w-3.5 h-3.5"></i> Animar capas
+                </button>
+                <button id="stepResetBtn" class="px-2 py-1 rounded-lg text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700">Final</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Results Panel -->
+          <div class="grid grid-cols-1 lg:grid-cols-12 gap-4">
+            <!-- Dominant State + Histogram -->
+            <div class="lg:col-span-7 glass-panel rounded-2xl p-4 flex flex-col gap-3">
+              <div class="flex flex-wrap items-center justify-between gap-2">
+                <div>
+                  <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400">Histograma de Probabilidades</h3>
+                  <p id="simMetaInfo" class="text-[11px] text-slate-500 mt-0.5">Modo Statevector · Sin ruido</p>
+                </div>
+                <div class="flex items-center gap-2 bg-slate-900/90 px-3 py-1.5 rounded-xl border border-sky-500/30">
+                  <span class="text-[11px] text-slate-400">Estado dominante:</span>
+                  <span id="dominantStateKet" class="font-mono-code text-sm font-bold text-sky-300">|000⟩</span>
+                  <span id="dominantStateProb" class="text-xs font-semibold px-1.5 py-0.5 rounded bg-sky-500/20 text-sky-200">100.0%</span>
+                </div>
+              </div>
+              <div class="relative h-60 w-full">
+                <canvas id="probChart"></canvas>
+              </div>
+            </div>
+
+            <!-- Amplitudes Table -->
+            <div class="lg:col-span-5 glass-panel rounded-2xl p-4 flex flex-col">
+              <div class="flex items-center justify-between mb-2">
+                <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400">Tabla de Amplitudes</h3>
+                <label class="flex items-center gap-1.5 text-[11px] text-slate-400 cursor-pointer">
+                  <input id="hideZeroAmpChk" type="checkbox" checked class="accent-sky-400 rounded" />
+                  Ocultar nulos
+                </label>
+              </div>
+              <div class="overflow-y-auto max-h-60 rounded-xl border border-slate-800/90">
+                <table class="w-full text-left text-xs">
+                  <thead class="bg-slate-900/95 sticky top-0 text-slate-400 text-[11px] uppercase">
+                    <tr>
+                      <th class="py-2 px-2.5">Estado</th>
+                      <th class="py-2 px-2.5">Amplitud / ρ</th>
+                      <th class="py-2 px-2.5">Fase</th>
+                      <th class="py-2 px-2.5 text-right">Prob.</th>
+                    </tr>
+                  </thead>
+                  <tbody id="amplitudesTableBody" class="divide-y divide-slate-800/70 font-mono-code"></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <!-- 3D Interactive Bloch Spheres -->
+          <div class="glass-panel rounded-2xl p-4">
+            <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
+              <div>
+                <h3 class="text-xs font-bold uppercase tracking-wider text-slate-300 flex items-center gap-1.5">
+                  <i data-lucide="globe" class="w-4 h-4 text-sky-400"></i> Esferas de Bloch 3D Interactivas
+                </h3>
+                <p class="text-[11px] text-slate-400">Arrastra cualquier esfera para rotar en 3D. El vector animado muestra la transición desde el estado inicial hasta el estado actual.</p>
+              </div>
+              <button id="replayBlochAnimBtn" class="px-2.5 py-1 rounded-lg text-xs font-medium bg-slate-800 hover:bg-slate-700 text-sky-300 border border-slate-700 flex items-center gap-1.5">
+                <i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i> Reproducir transición
+              </button>
+            </div>
+            <div id="blochSpheresGrid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== VIEW 2: ALGORITHMS ==================== -->
+    <section id="view-algorithms" class="hidden space-y-5">
+      <div class="glass-panel rounded-2xl p-5">
+        <h1 class="text-xl font-bold text-slate-100 flex items-center gap-2">
+          <i data-lucide="sparkles" class="w-5 h-5 text-sky-400"></i> Algoritmos Cuánticos Precargados
+        </h1>
+        <p class="text-sm text-slate-400 mt-1">Explora, configura sus parámetros y carga directamente cualquiera de estos circuitos fundamentales en el emulador para ejecutarlos y analizar su evolución capa por capa.</p>
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+        <!-- Quantum Teleportation -->
+        <article class="glass-panel rounded-2xl p-5 flex flex-col justify-between gap-4 border-sky-500/25">
+          <div class="space-y-3">
+            <div class="flex items-start justify-between gap-2">
+              <div>
+                <span class="text-[11px] font-semibold uppercase tracking-wider text-sky-400">3 Cúbits · 2 Registros Clásicos</span>
+                <h2 class="text-lg font-bold text-slate-100 mt-0.5">Teleportación Cuántica</h2>
+              </div>
+              <span class="px-2.5 py-1 rounded-full text-[11px] bg-sky-500/15 text-sky-300 border border-sky-500/30 font-mono-code">Control clásico</span>
+            </div>
+            <p class="text-sm text-slate-300 leading-relaxed">
+              Transfiere un estado cuántico arbitrario $|\psi\rangle$ desde el cúbit $q_0$ hacia $q_2$ usando un par entrelazado en $(q_1, q_2)$, dos mediciones ($m_0, m_1$) y correcciones dinámicas clásicas $X$ y $Z$ sobre $q_2$ antes de que sufra decoherencia.
+            </p>
+            <ul class="text-xs text-slate-400 space-y-1 list-disc pl-4">
+              <li>3 registros cuánticos ($q_0, q_1, q_2$) y 2 registros clásicos ($m_0, m_1$).</li>
+              <li>2 puertas $H$ y 2 puertas $\text{CNOT}$ (profundidad de 4 capas antes de la medición).</li>
+              <li>Control clásico dinámico: dispara $X$ si $m_1 = 1$ y $Z$ si $m_0 = 1$.</li>
+            </ul>
+            <!-- State to teleport selector -->
+            <div class="bg-slate-900/90 rounded-xl p-3 border border-slate-800">
+              <label for="teleportPresetState" class="block text-xs font-semibold text-slate-300 mb-1.5">Estado a teleportar en $q_0$:</label>
+              <select id="teleportPresetState" class="w-full bg-slate-800 text-slate-100 text-xs rounded-lg px-2.5 py-1.5 border border-slate-700 focus:outline-none focus:border-sky-400">
+                <option value="ry60">Superposición arbitraria: Ry(π/3)|0⟩ (Bloch x=0.87, z=0.50)</option>
+                <option value="one">Estado base |1⟩ (X sobre q0)</option>
+                <option value="plus">Estado |+⟩ (H sobre q0)</option>
+                <option value="plusi">Estado |+i⟩ (H + S sobre q0)</option>
+              </select>
+            </div>
+          </div>
+          <div class="flex flex-wrap items-center gap-2 pt-2 border-t border-slate-800">
+            <button id="loadTeleportBtn" class="flex-1 px-4 py-2 rounded-xl text-xs font-semibold bg-sky-500 hover:bg-sky-400 text-slate-950 flex items-center justify-center gap-1.5 transition">
+              <i data-lucide="play" class="w-4 h-4"></i> Cargar y ejecutar en Simulador
+            </button>
+          </div>
+        </article>
+
+        <!-- Deutsch Algorithm -->
+        <article class="glass-panel rounded-2xl p-5 flex flex-col justify-between gap-4 border-indigo-500/25">
+          <div class="space-y-3">
+            <div class="flex items-start justify-between gap-2">
+              <div>
+                <span class="text-[11px] font-semibold uppercase tracking-wider text-indigo-400">2 Cúbits · Oráculo Cuántico</span>
+                <h2 class="text-lg font-bold text-slate-100 mt-0.5">Algoritmo de Deutsch</h2>
+              </div>
+              <span class="px-2.5 py-1 rounded-full text-[11px] bg-indigo-500/15 text-indigo-300 border border-indigo-500/30 font-mono-code">1 evaluación</span>
+            </div>
+            <p class="text-sm text-slate-300 leading-relaxed">
+              Dada una función booleana $f: \{0,1\} \to \{0,1\}$ con la promesa de ser <strong>constante</strong> o <strong>balanceada</strong>, determina cuál es en una sola evaluación del oráculo $U_f$ utilizando únicamente compuertas $X$, $H$ y $\text{CNOT}$.
+            </p>
+            <ul class="text-xs text-slate-400 space-y-1 list-disc pl-4">
+              <li>Si $q_0$ mide $|0\rangle$ con probabilidad $100\%$: la función es <strong>constante</strong>.</li>
+              <li>Si $q_0$ mide $|1\rangle$ con probabilidad $100\%$: la función es <strong>balanceada</strong>.</li>
+              <li>Usa retroceso de fase (<em>phase kickback</em>) inicializando $q_1$ en $|-\rangle = H X |0\rangle$.</li>
+            </ul>
+            <!-- Oracle selector -->
+            <div class="bg-slate-900/90 rounded-xl p-3 border border-slate-800">
+              <label for="deutschOracleSelect" class="block text-xs font-semibold text-slate-300 mb-1.5">Oráculo $U_f$ a evaluar:</label>
+              <select id="deutschOracleSelect" class="w-full bg-slate-800 text-slate-100 text-xs rounded-lg px-2.5 py-1.5 border border-slate-700 focus:outline-none focus:border-indigo-400">
+                <option value="const0">f(x) = 0 — Constante (Identidad)</option>
+                <option value="const1">f(x) = 1 — Constante (X en q1)</option>
+                <option value="bal_id" selected>f(x) = x — Balanceada (CNOT q0→q1)</option>
+                <option value="bal_not">f(x) = 1 - x — Balanceada (CNOT q0→q1 + X en q1)</option>
+              </select>
+            </div>
+          </div>
+          <div class="flex flex-wrap items-center gap-2 pt-2 border-t border-slate-800">
+            <button id="loadDeutschBtn" class="flex-1 px-4 py-2 rounded-xl text-xs font-semibold bg-indigo-500 hover:bg-indigo-400 text-white flex items-center justify-center gap-1.5 transition">
+              <i data-lucide="play" class="w-4 h-4"></i> Cargar y ejecutar en Simulador
+            </button>
+          </div>
+        </article>
+
+        <!-- Extra: GHZ / Bell State with For-Loop Demo -->
+        <article class="glass-panel rounded-2xl p-5 flex flex-col justify-between gap-4">
+          <div class="space-y-2.5">
+            <span class="text-[11px] font-semibold uppercase tracking-wider text-emerald-400">3 Cúbits · Entrelazamiento</span>
+            <h2 class="text-lg font-bold text-slate-100">Estado GHZ (Greenberger-Horne-Zeilinger)</h2>
+            <p class="text-sm text-slate-300 leading-relaxed">
+              Crea el estado máximamente entrelazado $\frac{|000\rangle + |111\rangle}{\sqrt{2}}$ mediante una puerta Hadamard y dos CNOT en cascada. Ideal para observar cómo la traza parcial reduce la longitud de cada vector de Bloch a $0$ en estados entrelazados puros.
+            </p>
+          </div>
+          <button id="loadGhzBtn" class="px-4 py-2 rounded-xl text-xs font-semibold bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-200 border border-emerald-500/40 flex items-center justify-center gap-1.5 transition">
+            <i data-lucide="play" class="w-4 h-4"></i> Cargar Estado GHZ
+          </button>
+        </article>
+
+        <!-- Extra: For-Loop Rotation Demo -->
+        <article class="glass-panel rounded-2xl p-5 flex flex-col justify-between gap-4">
+          <div class="space-y-2.5">
+            <span class="text-[11px] font-semibold uppercase tracking-wider text-violet-400">2 Cúbits · Ciclo for</span>
+            <h2 class="text-lg font-bold text-slate-100">Amplificación por Ciclo <code class="text-violet-300">for</code></h2>
+            <p class="text-sm text-slate-300 leading-relaxed">
+              Demuestra el bloque de iteración <code class="text-violet-300">for</code> repitiendo 4 veces una rotación $R_y(\pi/4)$ sobre $q_0$ para completar una inversión total $|0\rangle \to |1\rangle$ sin saturar el editor con compuertas repetidas.
+            </p>
+          </div>
+          <button id="loadForDemoBtn" class="px-4 py-2 rounded-xl text-xs font-semibold bg-violet-500/20 hover:bg-violet-500/30 text-violet-200 border border-violet-500/40 flex items-center justify-center gap-1.5 transition">
+            <i data-lucide="repeat" class="w-4 h-4"></i> Cargar Demo de Ciclo for
+          </button>
+        </article>
+      </div>
+    </section>
+
+    <!-- ==================== VIEW 3: LEARN (APRENDE) ==================== -->
+    <section id="view-learn" class="hidden space-y-4">
+      <!-- Sub-navigation inside Learn -->
+      <div class="glass-panel rounded-2xl p-2 flex flex-wrap items-center gap-2">
+        <button data-learntab="theory" class="learn-tab-btn px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold flex items-center gap-2 bg-sky-500/20 text-sky-300 border border-sky-500/35">
+          <i data-lucide="book-marked" class="w-4 h-4"></i> Lecciones de Teoría
+        </button>
+        <button data-learntab="machzehnder" class="learn-tab-btn px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold flex items-center gap-2 text-slate-400 hover:text-slate-200 border border-transparent">
+          <i data-lucide="waves" class="w-4 h-4"></i> Interferómetro de Mach-Zehnder
+        </button>
+        <button data-learntab="elitzur" class="learn-tab-btn px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold flex items-center gap-2 text-slate-400 hover:text-slate-200 border border-transparent">
+          <i data-lucide="bomb" class="w-4 h-4"></i> Bombas de Elitzur-Vaidman
+        </button>
+      </div>
+
+      <!-- SUBTAB 3.1: THEORY LESSONS (MARKDOWN) -->
+      <div id="learn-theory" class="grid grid-cols-1 lg:grid-cols-12 gap-4">
+        <div class="lg:col-span-3 glass-panel rounded-2xl p-3 space-y-1.5 h-fit">
+          <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400 px-2 pb-1">Lecciones</h3>
+          <button data-lesson="intro" class="lesson-nav-btn w-full text-left px-3 py-2.5 rounded-xl text-xs font-semibold bg-sky-500/20 text-sky-200 border border-sky-500/30">
+            1. Introducción a la Computación Cuántica
+          </button>
+          <button data-lesson="gates" class="lesson-nav-btn w-full text-left px-3 py-2.5 rounded-xl text-xs font-semibold text-slate-300 hover:bg-slate-800/80 border border-transparent">
+            2. Compuertas Cuánticas Básicas (17)
+          </button>
+          <button data-lesson="guide" class="lesson-nav-btn w-full text-left px-3 py-2.5 rounded-xl text-xs font-semibold text-slate-300 hover:bg-slate-800/80 border border-transparent">
+            3. Guía de Uso del Simulador
+          </button>
+        </div>
+        <div class="lg:col-span-9 glass-panel rounded-2xl p-5 sm:p-7">
+          <div id="lessonMarkdownRender" class="lesson-prose"></div>
+        </div>
+      </div>
+
+      <!-- SUBTAB 3.2: MACH-ZEHNDER INTERFEROMETER -->
+      <div id="learn-machzehnder" class="hidden space-y-4">
+        <div class="grid grid-cols-1 xl:grid-cols-12 gap-4">
+          <!-- Optical Bench Canvas -->
+          <div class="xl:col-span-8 glass-panel rounded-2xl p-4 space-y-3">
+            <div class="flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <h2 class="text-base font-bold text-slate-100">Interferómetro de Mach-Zehnder con Fotones Individuales</h2>
+                <p class="text-xs text-slate-400">Modelo unitario equivalente: <code class="text-sky-300 font-mono-code">H · P(φ) · H |0⟩</code> donde |0⟩ es el brazo superior (A) y |1⟩ el brazo inferior (B).</p>
+              </div>
+              <div class="flex items-center gap-1.5">
+                <button id="mzFire1Btn" class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-sky-500 hover:bg-sky-400 text-slate-950 flex items-center gap-1 transition">
+                  <i data-lucide="zap" class="w-3.5 h-3.5"></i> 1 Fotón
+                </button>
+                <button id="mzFire100Btn" class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-indigo-500/20 hover:bg-indigo-500/30 text-indigo-200 border border-indigo-500/40 transition">
+                  +100 Fotones
+                </button>
+                <button id="mzFire1000Btn" class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-indigo-500/20 hover:bg-indigo-500/30 text-indigo-200 border border-indigo-500/40 transition">
+                  +1000
+                </button>
+                <button id="mzResetBtn" class="px-2.5 py-1.5 rounded-lg text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700" title="Reiniciar contadores">
+                  <i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i>
+                </button>
+              </div>
+            </div>
+
+            <div class="relative w-full bg-[#050810] rounded-xl border border-slate-800 overflow-hidden">
+              <canvas id="mzCanvas" class="w-full h-[340px] block"></canvas>
+            </div>
+
+            <!-- Controls -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-3 pt-1">
+              <div class="bg-slate-900/90 rounded-xl p-3 border border-slate-800 space-y-2">
+                <div class="flex items-center justify-between text-xs">
+                  <label for="mzPhaseSlider" class="font-semibold text-slate-200">Desfasador φ (brazo |1⟩)</label>
+                  <span id="mzPhaseValue" class="font-mono-code text-sky-300 font-bold">0.00 rad (0°)</span>
+                </div>
+                <input id="mzPhaseSlider" type="range" min="0" max="6.2831853" step="0.01" value="0" class="w-full accent-sky-400" />
+                <div class="flex justify-between text-[10px] font-mono-code text-slate-500">
+                  <button data-mzphi="0" class="mz-phi-preset hover:text-sky-300">0</button>
+                  <button data-mzphi="1.5707963" class="mz-phi-preset hover:text-sky-300">π/2</button>
+                  <button data-mzphi="3.1415926" class="mz-phi-preset hover:text-sky-300">π</button>
+                  <button data-mzphi="4.7123889" class="mz-phi-preset hover:text-sky-300">3π/2</button>
+                  <button data-mzphi="6.2831853" class="mz-phi-preset hover:text-sky-300">2π</button>
+                </div>
+              </div>
+
+              <div class="bg-slate-900/90 rounded-xl p-3 border border-slate-800 flex flex-col justify-center gap-2.5 text-xs">
+                <label class="flex items-center justify-between cursor-pointer">
+                  <span class="text-slate-200 font-medium">Habilitar segundo divisor de haz (BS₂)</span>
+                  <input id="mzBs2Toggle" type="checkbox" checked class="w-4 h-4 accent-sky-400" />
+                </label>
+                <label class="flex items-center justify-between cursor-pointer">
+                  <span class="text-slate-200 font-medium">Bloquear brazo superior (|0⟩)</span>
+                  <input id="mzBlockUpperToggle" type="checkbox" class="w-4 h-4 accent-rose-400" />
+                </label>
+                <label class="flex items-center justify-between cursor-pointer">
+                  <span class="text-slate-200 font-medium">Bloquear brazo inferior (|1⟩)</span>
+                  <input id="mzBlockLowerToggle" type="checkbox" class="w-4 h-4 accent-rose-400" />
+                </label>
+              </div>
+            </div>
+          </div>
+
+          <!-- MZ Results & Theory Panel -->
+          <div class="xl:col-span-4 glass-panel rounded-2xl p-4 flex flex-col gap-3.5">
+            <h3 class="text-xs font-bold uppercase tracking-wider text-slate-300">Probabilidades Teóricas vs. Empíricas</h3>
+
+            <div class="grid grid-cols-2 gap-2.5">
+              <div class="bg-slate-900/90 rounded-xl p-3 border border-sky-500/30">
+                <div class="text-[11px] text-slate-400">Detector D₀ (|0⟩)</div>
+                <div id="mzTheoD0" class="text-xl font-bold font-mono-code text-sky-300 mt-0.5">100.0%</div>
+                <div id="mzCountD0" class="text-[11px] text-slate-400 mt-1">Conteo: 0 (0.0%)</div>
+              </div>
+              <div class="bg-slate-900/90 rounded-xl p-3 border border-fuchsia-500/30">
+                <div class="text-[11px] text-slate-400">Detector D₁ (|1⟩)</div>
+                <div id="mzTheoD1" class="text-xl font-bold font-mono-code text-fuchsia-300 mt-0.5">0.0%</div>
+                <div id="mzCountD1" class="text-[11px] text-slate-400 mt-1">Conteo: 0 (0.0%)</div>
+              </div>
+            </div>
+
+            <div id="mzBlockedInfo" class="hidden text-xs px-3 py-2 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-200">
+              Absorción en bloqueador: <span id="mzTheoAbs" class="font-mono-code font-bold">0%</span> · Absorbidos: <span id="mzCountAbs" class="font-mono-code font-bold">0</span>
+            </div>
+
+            <div class="relative h-52 w-full">
+              <canvas id="mzChart"></canvas>
+            </div>
+
+            <div id="mzPhysicsNote" class="text-xs text-slate-300 bg-slate-900/80 rounded-xl p-3 border border-slate-800 leading-relaxed">
+              Con BS₂ activo y sin obstáculos, los caminos interfieren: <span class="font-mono-code text-sky-300">P(D₀) = cos²(φ/2)</span> y <span class="font-mono-code text-fuchsia-300">P(D₁) = sin²(φ/2)</span>.
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- SUBTAB 3.3: ELITZUR-VAIDMAN BOMB TESTER -->
+      <div id="learn-elitzur" class="hidden space-y-4">
+        <div class="grid grid-cols-1 xl:grid-cols-12 gap-4">
+          <!-- EV Optical Bench -->
+          <div class="xl:col-span-8 glass-panel rounded-2xl p-4 space-y-3">
+            <div class="flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <h2 class="text-base font-bold text-slate-100">Medida Libre de Interacción: Bombas de Elitzur-Vaidman</h2>
+                <p class="text-xs text-slate-400">Interferómetro calibrado en φ = 0. Si el detector D₁ registra un fotón, certificas que la bomba está activa <strong>sin detonarla</strong>.</p>
+              </div>
+              <div class="flex flex-wrap items-center gap-1.5">
+                <button id="evFire1Btn" class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-amber-400 hover:bg-amber-300 text-slate-950 flex items-center gap-1 transition">
+                  <i data-lucide="zap" class="w-3.5 h-3.5"></i> Enviar 1 Fotón
+                </button>
+                <button id="evFire100Btn" class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-indigo-500/20 hover:bg-indigo-500/30 text-indigo-200 border border-indigo-500/40 transition">
+                  Ráfaga (100)
+                </button>
+                <button id="evResetBtn" class="px-2.5 py-1.5 rounded-lg text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700" title="Reiniciar estadística">
+                  <i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i>
+                </button>
+              </div>
+            </div>
+
+            <!-- Scenario Selector -->
+            <div class="flex flex-wrap items-center justify-between gap-2 bg-slate-900/90 p-2.5 rounded-xl border border-slate-800">
+              <div class="flex flex-wrap items-center gap-2 text-xs">
+                <span class="font-semibold text-slate-300">Escenario:</span>
+                <button data-evmode="active" class="ev-mode-btn px-2.5 py-1 rounded-lg font-medium bg-rose-500/20 text-rose-200 border border-rose-500/40">Bomba activa (funcional)</button>
+                <button data-evmode="dud" class="ev-mode-btn px-2.5 py-1 rounded-lg font-medium bg-slate-800 text-slate-400 border border-transparent hover:text-slate-200">Bomba defectuosa (inactiva)</button>
+                <button data-evmode="hidden" class="ev-mode-btn px-2.5 py-1 rounded-lg font-medium bg-slate-800 text-slate-400 border border-transparent hover:text-slate-200">Modo prueba oculta (?)</button>
+              </div>
+              <div id="evHiddenControls" class="hidden flex items-center gap-1.5 text-xs">
+                <button id="evGuessActiveBtn" class="px-2.5 py-1 rounded-lg bg-rose-500/20 hover:bg-rose-500/30 text-rose-200 border border-rose-500/40 font-medium">Es Activa</button>
+                <button id="evGuessDudBtn" class="px-2.5 py-1 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-200 border border-emerald-500/40 font-medium">Es Defectuosa</button>
+                <button id="evNewHiddenBtn" class="px-2.5 py-1 rounded-lg bg-sky-500/20 hover:bg-sky-500/30 text-sky-200 border border-sky-500/40 font-medium">Nueva bomba</button>
+              </div>
+            </div>
+
+            <!-- EV Canvas -->
+            <div class="relative w-full bg-[#050810] rounded-xl border border-slate-800 overflow-hidden">
+              <canvas id="evCanvas" class="w-full h-[330px] block"></canvas>
+            </div>
+
+            <!-- Last Outcome Banner -->
+            <div id="evOutcomeBanner" class="px-3.5 py-2.5 rounded-xl bg-slate-900/90 border border-slate-800 text-xs text-slate-300 flex items-center justify-between gap-2">
+              <span id="evOutcomeText">Envía un fotón para observar el colapso de la función de onda o la detección libre de interacción.</span>
+              <span id="evHiddenFeedback" class="font-semibold text-sky-300"></span>
+            </div>
+          </div>
+
+          <!-- EV Statistics Panel -->
+          <div class="xl:col-span-4 glass-panel rounded-2xl p-4 flex flex-col gap-3.5">
+            <div class="flex items-center justify-between">
+              <h3 class="text-xs font-bold uppercase tracking-wider text-slate-300">Registro Estadístico</h3>
+              <span id="evTotalShots" class="text-xs font-mono-code text-slate-400">Intentos: 0</span>
+            </div>
+
+            <div class="space-y-2 text-xs">
+              <div class="bg-slate-900/90 rounded-xl p-3 border border-rose-500/30 flex items-center justify-between">
+                <div>
+                  <div class="font-semibold text-rose-300">Explosión de la bomba</div>
+                  <div class="text-[11px] text-slate-400">Teórico (activa): 50%</div>
+                </div>
+                <div class="text-right font-mono-code">
+                  <div id="evStatBoomPct" class="text-base font-bold text-rose-300">0.0%</div>
+                  <div id="evStatBoomCnt" class="text-[11px] text-slate-400">0 eventos</div>
+                </div>
+              </div>
+              <div class="bg-slate-900/90 rounded-xl p-3 border border-sky-500/30 flex items-center justify-between">
+                <div>
+                  <div class="font-semibold text-sky-300">Detección en D₀ (inconcluso)</div>
+                  <div class="text-[11px] text-slate-400">Teórico (activa): 25% · (inactiva): 100%</div>
+                </div>
+                <div class="text-right font-mono-code">
+                  <div id="evStatD0Pct" class="text-base font-bold text-sky-300">0.0%</div>
+                  <div id="evStatD0Cnt" class="text-[11px] text-slate-400">0 eventos</div>
+                </div>
+              </div>
+              <div class="bg-slate-900/90 rounded-xl p-3 border border-emerald-500/35 flex items-center justify-between">
+                <div>
+                  <div class="font-semibold text-emerald-300">Detección en D₁ (libre de interacción)</div>
+                  <div class="text-[11px] text-slate-400">Teórico (activa): 25% · (inactiva): 0%</div>
+                </div>
+                <div class="text-right font-mono-code">
+                  <div id="evStatD1Pct" class="text-base font-bold text-emerald-300">0.0%</div>
+                  <div id="evStatD1Cnt" class="text-[11px] text-slate-400">0 eventos</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="relative h-48 w-full">
+              <canvas id="evChart"></canvas>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== VIEW 4: ARCHITECTURE & DOCS ==================== -->
+    <section id="view-docs" class="hidden space-y-4">
+      <div class="glass-panel rounded-2xl p-6 space-y-5">
+        <div class="border-b border-slate-800 pb-4">
+          <h1 class="text-xl font-bold text-slate-100">Arquitectura del Sistema y Mejora Adicional</h1>
+          <p class="text-sm text-slate-400 mt-1">Resumen técnico de QuLab, el motor reactivo de simulación en navegador y la arquitectura contenerizada de referencia (FastAPI + Qiskit Aer + Astro + Docker).</p>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div class="bg-slate-900/80 rounded-xl p-4 border border-slate-800 space-y-2">
+            <div class="text-sky-400 font-semibold text-sm flex items-center gap-1.5"><i data-lucide="server" class="w-4 h-4"></i> Backend (FastAPI + Qiskit Aer)</div>
+            <p class="text-xs text-slate-300 leading-relaxed">Puerto <code class="text-sky-300">8000</code>. Valida la estructura JSON del circuito (compuertas, subcircuitos, ciclos <code class="text-sky-300">for</code>, parámetros y ruido), construye un <code class="text-sky-300">QuantumCircuit</code> en Qiskit, ejecuta Qiskit Aer en modo <em>Shot</em> o <em>Statevector</em> y expone el CRUD de subcircuitos en volumen persistente.</p>
+          </div>
+          <div class="bg-slate-900/80 rounded-xl p-4 border border-slate-800 space-y-2">
+            <div class="text-indigo-400 font-semibold text-sm flex items-center gap-1.5"><i data-lucide="layout" class="w-4 h-4"></i> Frontend Reactivo (Astro / Web)</div>
+            <p class="text-xs text-slate-300 leading-relaxed">Puerto <code class="text-indigo-300">4321</code>. Coordina el editor drag-and-drop, los algoritmos precargados, el módulo <strong>Aprende</strong> (teoría y óptica cuántica) y las visualizaciones sincronizadas con <em>debounce</em> y cancelación de ejecuciones obsoletas. En esta vista interactiva el motor cuántico exacto (statevector, matriz de densidad y trayectorias) corre localmente en tu navegador.</p>
+          </div>
+          <div class="bg-slate-900/80 rounded-xl p-4 border border-slate-800 space-y-2">
+            <div class="text-emerald-400 font-semibold text-sm flex items-center gap-1.5"><i data-lucide="container" class="w-4 h-4"></i> Persistencia y Docker Compose</div>
+            <p class="text-xs text-slate-300 leading-relaxed">Orquesta ambos servicios en una red dedicada con políticas CORS y un volumen persistente para los subcircuitos JSON. El archivo <code class="text-emerald-300">README.md</code> y los contenedores están incluidos en el paquete descargable del proyecto.</p>
+          </div>
+        </div>
+
+        <div class="bg-indigo-500/10 rounded-xl p-4 border border-indigo-500/30 space-y-2">
+          <h2 class="text-sm font-bold text-indigo-300 flex items-center gap-1.5">
+            <i data-lucide="sparkles" class="w-4 h-4"></i> Mejora Libre Implementada
+          </h2>
+          <p class="text-xs text-slate-300 leading-relaxed">
+            Se añadieron dos capacidades de alto impacto para el aprendizaje y la depuración de algoritmos:
+            <strong>(1) Inspección Paso a Paso por Capa (Time-Step Scrubber)</strong>, que permite deslizar o animar el circuito columna por columna observando la evolución intermedia de cada esfera de Bloch y del histograma; y
+            <strong>(2) Exportador automático a OpenQASM 2.0 y Qiskit (Python)</strong>, que traduce en vivo el circuito (incluyendo ciclos <code class="text-indigo-200">for</code>, subcircuitos y modelo de ruido) en código listo para ejecutar en Qiskit Aer o hardware cuántico real.
+          </p>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ==================== MODALS ==================== -->
+
+  <!-- Modal: Gate Parameter / Classical Control Editor -->
+  <div id="gateConfigModal" class="hidden fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="glass-panel rounded-2xl max-w-md w-full p-5 space-y-4 shadow-2xl">
+      <div class="flex items-center justify-between">
+        <h3 id="gateModalTitle" class="text-base font-bold text-slate-100">Configurar compuerta</h3>
+        <button data-close-modal="gateConfigModal" class="text-slate-400 hover:text-slate-100"><i data-lucide="x" class="w-5 h-5"></i></button>
+      </div>
+      <div id="gateModalAngleWrap" class="space-y-2">
+        <div class="flex justify-between text-xs">
+          <label for="gateModalAngle" class="text-slate-300 font-medium">Ángulo (radianes)</label>
+          <span id="gateModalAngleDisplay" class="font-mono-code text-sky-300">π/2 (1.571)</span>
+        </div>
+        <input id="gateModalAngle" type="range" min="-6.2831853" max="6.2831853" step="0.01" value="1.5707963" class="w-full accent-sky-400" />
+        <div class="flex flex-wrap gap-1.5">
+          <button data-angle="-3.1415926" class="angle-preset px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-[11px] font-mono-code text-slate-200">-π</button>
+          <button data-angle="-1.5707963" class="angle-preset px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-[11px] font-mono-code text-slate-200">-π/2</button>
+          <button data-angle="0.7853981" class="angle-preset px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-[11px] font-mono-code text-slate-200">π/4</button>
+          <button data-angle="1.0471975" class="angle-preset px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-[11px] font-mono-code text-slate-200">π/3</button>
+          <button data-angle="1.5707963" class="angle-preset px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-[11px] font-mono-code text-slate-200">π/2</button>
+          <button data-angle="3.1415926" class="angle-preset px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-[11px] font-mono-code text-slate-200">π</button>
+        </div>
+      </div>
+      <div id="gateModalMeasWrap" class="hidden space-y-1.5">
+        <label for="gateModalCbit" class="block text-xs text-slate-300 font-medium">Registro clásico destino</label>
+        <select id="gateModalCbit" class="w-full bg-slate-800 text-slate-100 text-xs rounded-lg px-3 py-2 border border-slate-700"></select>
+      </div>
+      <div id="gateModalCondWrap" class="space-y-1.5 pt-2 border-t border-slate-800">
+        <label for="gateModalCondBit" class="block text-xs text-slate-300 font-medium">Control clásico condicional (opcional)</label>
+        <select id="gateModalCondBit" class="w-full bg-slate-800 text-slate-100 text-xs rounded-lg px-3 py-2 border border-slate-700"></select>
+      </div>
+      <div class="flex items-center justify-between pt-2">
+        <button id="gateModalDeleteBtn" class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-rose-500/15 hover:bg-rose-500/25 text-rose-300 border border-rose-500/35">Eliminar</button>
+        <div class="flex gap-2">
+          <button data-close-modal="gateConfigModal" class="px-3 py-1.5 rounded-lg text-xs bg-slate-800 text-slate-300">Cancelar</button>
+          <button id="gateModalSaveBtn" class="px-4 py-1.5 rounded-lg text-xs font-semibold bg-sky-500 hover:bg-sky-400 text-slate-950">Aplicar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Add / Edit For Loop -->
+  <div id="forLoopModal" class="hidden fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="glass-panel rounded-2xl max-w-md w-full p-5 space-y-4 shadow-2xl">
+      <div class="flex items-center justify-between">
+        <h3 class="text-base font-bold text-slate-100 flex items-center gap-2"><i data-lucide="repeat" class="w-4 h-4 text-violet-400"></i> Añadir Ciclo <code class="text-violet-300">for</code></h3>
+        <button data-close-modal="forLoopModal" class="text-slate-400 hover:text-slate-100"><i data-lucide="x" class="w-5 h-5"></i></button>
+      </div>
+      <p class="text-xs text-slate-400">Repite automáticamente todas las compuertas comprendidas entre la columna inicial y la final sin duplicarlas en el lienzo.</p>
+      <div class="grid grid-cols-3 gap-3 text-xs">
+        <div>
+          <label for="forStartCol" class="block text-slate-300 mb-1">Capa inicio</label>
+          <input id="forStartCol" type="number" min="1" value="1" class="w-full bg-slate-800 text-slate-100 rounded-lg px-2.5 py-1.5 border border-slate-700" />
+        </div>
+        <div>
+          <label for="forEndCol" class="block text-slate-300 mb-1">Capa fin</label>
+          <input id="forEndCol" type="number" min="1" value="2" class="w-full bg-slate-800 text-slate-100 rounded-lg px-2.5 py-1.5 border border-slate-700" />
+        </div>
+        <div>
+          <label for="forIterations" class="block text-slate-300 mb-1">Repeticiones</label>
+          <input id="forIterations" type="number" min="2" max="16" value="3" class="w-full bg-slate-800 text-slate-100 rounded-lg px-2.5 py-1.5 border border-slate-700" />
+        </div>
+      </div>
+      <div class="flex justify-end gap-2 pt-2">
+        <button data-close-modal="forLoopModal" class="px-3 py-1.5 rounded-lg text-xs bg-slate-800 text-slate-300">Cancelar</button>
+        <button id="saveForLoopBtn" class="px-4 py-1.5 rounded-lg text-xs font-semibold bg-violet-500 hover:bg-violet-400 text-white">Añadir ciclo</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Save Subcircuit -->
+  <div id="saveSubcircuitModal" class="hidden fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="glass-panel rounded-2xl max-w-md w-full p-5 space-y-4 shadow-2xl">
+      <div class="flex items-center justify-between">
+        <h3 class="text-base font-bold text-slate-100 flex items-center gap-2"><i data-lucide="package-plus" class="w-4 h-4 text-emerald-400"></i> Guardar Subcircuito</h3>
+        <button data-close-modal="saveSubcircuitModal" class="text-slate-400 hover:text-slate-100"><i data-lucide="x" class="w-5 h-5"></i></button>
+      </div>
+      <div class="space-y-3 text-xs">
+        <div>
+          <label for="subNameInput" class="block text-slate-300 mb-1">Nombre del subcircuito</label>
+          <input id="subNameInput" type="text" placeholder="Ej. Bloque Grover, Par de Bell..." class="w-full bg-slate-800 text-slate-100 rounded-lg px-3 py-2 border border-slate-700 focus:outline-none focus:border-emerald-400" />
+        </div>
+        <div>
+          <label for="subDescInput" class="block text-slate-300 mb-1">Descripción</label>
+          <textarea id="subDescInput" rows="2" placeholder="Describe qué transformación realiza..." class="w-full bg-slate-800 text-slate-100 rounded-lg px-3 py-2 border border-slate-700 focus:outline-none focus:border-emerald-400"></textarea>
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label for="subFromCol" class="block text-slate-300 mb-1">Desde capa</label>
+            <input id="subFromCol" type="number" min="1" value="1" class="w-full bg-slate-800 text-slate-100 rounded-lg px-2.5 py-1.5 border border-slate-700" />
+          </div>
+          <div>
+            <label for="subToCol" class="block text-slate-300 mb-1">Hasta capa</label>
+            <input id="subToCol" type="number" min="1" value="8" class="w-full bg-slate-800 text-slate-100 rounded-lg px-2.5 py-1.5 border border-slate-700" />
+          </div>
+        </div>
+        <p id="subSavePreviewInfo" class="text-[11px] text-slate-400 bg-slate-900/90 p-2.5 rounded-lg border border-slate-800"></p>
+      </div>
+      <div class="flex justify-end gap-2 pt-1">
+        <button data-close-modal="saveSubcircuitModal" class="px-3 py-1.5 rounded-lg text-xs bg-slate-800 text-slate-300">Cancelar</button>
+        <button id="confirmSaveSubBtn" class="px-4 py-1.5 rounded-lg text-xs font-semibold bg-emerald-500 hover:bg-emerald-400 text-slate-950">Guardar subcircuito</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Inspect / Edit Subcircuit -->
+  <div id="inspectSubcircuitModal" class="hidden fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="glass-panel rounded-2xl max-w-2xl w-full p-5 space-y-4 shadow-2xl max-h-[90vh] overflow-y-auto">
+      <div class="flex items-center justify-between">
+        <div>
+          <h3 id="inspectSubTitle" class="text-base font-bold text-slate-100">Subcircuito</h3>
+          <p id="inspectSubSubtitle" class="text-xs text-slate-400"></p>
+        </div>
+        <button data-close-modal="inspectSubcircuitModal" class="text-slate-400 hover:text-slate-100"><i data-lucide="x" class="w-5 h-5"></i></button>
+      </div>
+
+      <!-- Editable Metadata -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+        <div>
+          <label for="editSubName" class="block text-slate-400 mb-1">Nombre</label>
+          <input id="editSubName" type="text" class="w-full bg-slate-800 text-slate-100 rounded-lg px-2.5 py-1.5 border border-slate-700" />
+        </div>
+        <div>
+          <label for="editSubDesc" class="block text-slate-400 mb-1">Descripción</label>
+          <input id="editSubDesc" type="text" class="w-full bg-slate-800 text-slate-100 rounded-lg px-2.5 py-1.5 border border-slate-700" />
+        </div>
+      </div>
+
+      <!-- Visual Internal Diagram -->
+      <div class="bg-[#050810] rounded-xl p-3 border border-slate-800 overflow-x-auto">
+        <div class="text-[11px] font-semibold text-slate-400 mb-2">Flujo interno y orden de capas</div>
+        <div id="inspectSubDiagram"></div>
+      </div>
+
+      <!-- Internal Gates Editor -->
+      <div class="space-y-2">
+        <div class="flex items-center justify-between">
+          <span class="text-xs font-semibold text-slate-300">Compuertas internas (editar, reordenar o añadir)</span>
+          <div class="flex items-center gap-1.5">
+            <select id="editSubAddGateType" class="bg-slate-800 text-slate-100 text-xs rounded-lg px-2 py-1 border border-slate-700">
+              <option value="H">H</option><option value="X">X</option><option value="Y">Y</option><option value="Z">Z</option>
+              <option value="S">S</option><option value="T">T</option><option value="SX">SX</option>
+              <option value="RX">RX(π/2)</option><option value="RY">RY(π/2)</option><option value="RZ">RZ(π/2)</option>
+              <option value="CNOT">CNOT</option><option value="SWAP">SWAP</option>
+            </select>
+            <select id="editSubAddQubit" class="bg-slate-800 text-slate-100 text-xs rounded-lg px-2 py-1 border border-slate-700"></select>
+            <button id="editSubAddGateBtn" class="px-2.5 py-1 rounded-lg text-xs font-semibold bg-sky-500/20 hover:bg-sky-500/30 text-sky-300 border border-sky-500/40">+ Añadir</button>
+          </div>
+        </div>
+        <div id="editSubGatesList" class="space-y-1.5 max-h-44 overflow-y-auto pr-1"></div>
+      </div>
+
+      <div class="flex items-center justify-between pt-2 border-t border-slate-800">
+        <button id="deleteSubModalBtn" class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-rose-500/15 hover:bg-rose-500/25 text-rose-300 border border-rose-500/35">Eliminar subcircuito</button>
+        <div class="flex gap-2">
+          <button data-close-modal="inspectSubcircuitModal" class="px-3 py-1.5 rounded-lg text-xs bg-slate-800 text-slate-300">Cerrar</button>
+          <button id="saveSubEditsBtn" class="px-4 py-1.5 rounded-lg text-xs font-semibold bg-emerald-500 hover:bg-emerald-400 text-slate-950">Guardar y actualizar instancias</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: OpenQASM 2.0 / Qiskit Export -->
+  <div id="qasmModal" class="hidden fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="glass-panel rounded-2xl max-w-2xl w-full p-5 space-y-3 shadow-2xl">
+      <div class="flex items-center justify-between">
+        <h3 class="text-base font-bold text-slate-100 flex items-center gap-2"><i data-lucide="code-2" class="w-4 h-4 text-sky-400"></i> Exportación OpenQASM 2.0 y Qiskit</h3>
+        <button data-close-modal="qasmModal" class="text-slate-400 hover:text-slate-100"><i data-lucide="x" class="w-5 h-5"></i></button>
+      </div>
+      <div class="flex gap-2">
+        <button id="exportTabQasm" class="px-3 py-1 rounded-lg text-xs font-semibold bg-sky-500/20 text-sky-300 border border-sky-500/40">OpenQASM 2.0</button>
+        <button id="exportTabQiskit" class="px-3 py-1 rounded-lg text-xs font-semibold bg-slate-800 text-slate-400 border border-transparent">Python (Qiskit Aer)</button>
+      </div>
+      <pre id="qasmCodeOutput" class="bg-[#050810] border border-slate-800 rounded-xl p-3.5 text-xs font-mono-code text-sky-200 overflow-x-auto max-h-80"></pre>
+      <div class="flex justify-end gap-2">
+        <button id="copyExportCodeBtn" class="px-4 py-1.5 rounded-lg text-xs font-semibold bg-sky-500 hover:bg-sky-400 text-slate-950 flex items-center gap-1.5">
+          <i data-lucide="copy" class="w-3.5 h-3.5"></i> Copiar código
+        </button>
+      </div>
+    </div>
+  </div>
+
+<script>
+/* ============================================================================
+   1. GATE DEFINITIONS (17 REQUIRED GATES + MEASUREMENT)
+   ============================================================================ */
+const GATES = [
+  { id: 'H',     label: 'H',     name: 'Hadamard',       qubits: 1, param: false, color: 'bg-sky-500/20 border-sky-400/60 text-sky-200' },
+  { id: 'X',     label: 'X',     name: 'NOT (Pauli-X)',  qubits: 1, param: false, color: 'bg-rose-500/20 border-rose-400/60 text-rose-200' },
+  { id: 'Y',     label: 'Y',     name: 'Pauli-Y',        qubits: 1, param: false, color: 'bg-rose-500/20 border-rose-400/60 text-rose-200' },
+  { id: 'Z',     label: 'Z',     name: 'Pauli-Z',        qubits: 1, param: false, color: 'bg-indigo-500/20 border-indigo-400/60 text-indigo-200' },
+  { id: 'I',     label: 'I',     name: 'Identidad',      qubits: 1, param: false, color: 'bg-slate-700/60 border-slate-500/60 text-slate-200' },
+  { id: 'SX',    label: '√X',    name: 'SX (√NOT)',      qubits: 1, param: false, color: 'bg-pink-500/20 border-pink-400/60 text-pink-200' },
+  { id: 'S',     label: 'S',     name: 'Fase S (π/2)',   qubits: 1, param: false, color: 'bg-indigo-500/20 border-indigo-400/60 text-indigo-200' },
+  { id: 'Sdg',   label: 'S†',    name: 'Sdg (-π/2)',     qubits: 1, param: false, color: 'bg-indigo-500/20 border-indigo-400/60 text-indigo-200' },
+  { id: 'T',     label: 'T',     name: 'Fase T (π/4)',   qubits: 1, param: false, color: 'bg-violet-500/20 border-violet-400/60 text-violet-200' },
+  { id: 'Tdg',   label: 'T†',    name: 'Tdg (-π/4)',     qubits: 1, param: false, color: 'bg-violet-500/20 border-violet-400/60 text-violet-200' },
+  { id: 'P',     label: 'P(φ)',  name: 'Phase P(φ)',     qubits: 1, param: true,  defaultAngle: Math.PI/2, color: 'bg-amber-500/20 border-amber-400/60 text-amber-200' },
+  { id: 'RX',    label: 'RX',    name: 'Rotación RX(θ)', qubits: 1, param: true,  defaultAngle: Math.PI/2, color: 'bg-amber-500/20 border-amber-400/60 text-amber-200' },
+  { id: 'RY',    label: 'RY',    name: 'Rotación RY(θ)', qubits: 1, param: true,  defaultAngle: Math.PI/2, color: 'bg-amber-500/20 border-amber-400/60 text-amber-200' },
+  { id: 'RZ',    label: 'RZ',    name: 'Rotación RZ(θ)', qubits: 1, param: true,  defaultAngle: Math.PI/2, color: 'bg-amber-500/20 border-amber-400/60 text-amber-200' },
+  { id: 'CNOT',  label: 'CNOT',  name: 'Controlled-NOT', qubits: 2, param: false, color: 'bg-cyan-500/20 border-cyan-400/60 text-cyan-200' },
+  { id: 'SWAP',  label: 'SWAP',  name: 'Intercambio',    qubits: 2, param: false, color: 'bg-teal-500/20 border-teal-400/60 text-teal-200' },
+  { id: 'CCNOT', label: 'CCX',   name: 'Toffoli (CCNOT)',qubits: 3, param: false, color: 'bg-fuchsia-500/20 border-fuchsia-400/60 text-fuchsia-200' },
+  { id: 'M',     label: 'M',     name: 'Medición',       qubits: 1, param: false, color: 'bg-emerald-500/20 border-emerald-400/60 text-emerald-200' },
+];
+const GATE_MAP = Object.fromEntries(GATES.map(g => [g.id, g]));
+
+/* ============================================================================
+   2. APPLICATION STATE
+   ============================================================================ */
+const DEFAULT_SUBCIRCUITS = [
+  {
+    id: 'sub_bell',
+    name: 'Par de Bell',
+    description: 'Genera el estado entrelazado (|00⟩ + |11⟩)/√2 sobre 2 cúbits.',
+    numQubits: 2,
+    gates: [
+      { id: 'sg1', type: 'H', col: 0, qubits: [0] },
+      { id: 'sg2', type: 'CNOT', col: 1, qubits: [0, 1] },
+    ]
+  },
+  {
+    id: 'sub_oracle_bal',
+    name: 'Oráculo Balanceado',
+    description: 'Oráculo U_f para f(x)=x mediante CNOT(q0→q1).',
+    numQubits: 2,
+    gates: [
+      { id: 'sg3', type: 'CNOT', col: 0, qubits: [0, 1] },
+    ]
+  }
+];
+
+function loadSavedSubcircuits() {
+  try {
+    const raw = localStorage.getItem('qulab_subcircuits_v1');
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+    }
+  } catch (e) {}
+  return JSON.parse(JSON.stringify(DEFAULT_SUBCIRCUITS));
+}
+function persistSubcircuits() {
+  try {
+    localStorage.setItem('qulab_subcircuits_v1', JSON.stringify(state.subcircuits));
+  } catch (e) {}
+}
+
+let uidCounter = 100;
+const nextUid = (prefix = 'g') => `${prefix}_${++uidCounter}`;
+
+const state = {
+  activeTab: 'simulator',
+  activeLearnTab: 'theory',
+  activeLesson: 'intro',
+  autoExec: true,
+  simVersion: 0,
+  simTimer: null,
+
+  // Circuit configuration
+  numQubits: 3,
+  numCbits: 3,
+  numCols: 10,
+  initialState: '000',
+  mode: 'statevector', // 'statevector' | 'shot'
+  shots: 1024,
+  noiseModel: 'none',  // 'none' | 'depolarizing' | 'thermal'
+  noiseParam: 0.05,
+  circuitTitle: 'Estado de Bell (Inicio)',
+
+  // Circuit operations:
+  // { id, type, col, qubits: [q...], angle?: number, cbit?: number, condBit?: number|null, subId?: string }
+  gates: [
+    { id: 'init_1', type: 'H', col: 0, qubits: [0] },
+    { id: 'init_2', type: 'CNOT', col: 1, qubits: [0, 1] },
+  ],
+  // For loops: { id, startCol, endCol, iterations }
+  forLoops: [],
+  subcircuits: loadSavedSubcircuits(),
+
+  // Editor interaction state
+  selectedTool: null,        // { kind: 'gate', type } | { kind: 'sub', subId }
+  pendingMulti: null,        // { type, col, qubits: [q...] }
+  editingGateId: null,
+  inspectingSubId: null,
+  stepLimit: null,           // null = full circuit, or 0..numCols
+  stepAnimTimer: null,
+
+  // Last simulation results
+  lastResult: null,
+  prevBloch: [],
+  blochViews: [],            // { yaw, pitch, animProgress, from, to }
+
+  // Mach-Zehnder state
+  mz: {
+    phi: 0,
+    bs2: true,
+    blockUpper: false,
+    blockLower: false,
+    counts: { d0: 0, d1: 0, abs: 0 },
+    photons: [],
+    animFrame: null,
+  },
+
+  // Elitzur-Vaidman state
+  ev: {
+    mode: 'active',          // 'active' | 'dud' | 'hidden'
+    hiddenIsActive: true,
+    hiddenRevealed: false,
+    counts: { boom: 0, d0: 0, d1: 0 },
+    photons: [],
+    explosionFlash: 0,
+    animFrame: null,
+  }
+};
+
+/* ============================================================================
+   3. COMPLEX ARITHMETIC & QUANTUM SIMULATION ENGINE
+   ============================================================================ */
+const C = {
+  add: (a, b) => ({ re: a.re + b.re, im: a.im + b.im }),
+  sub: (a, b) => ({ re: a.re - b.re, im: a.im - b.im }),
+  mul: (a, b) => ({ re: a.re * b.re - a.im * b.im, im: a.re * b.im + a.im * b.re }),
+  scale: (a, s) => ({ re: a.re * s, im: a.im * s }),
+  conj: (a) => ({ re: a.re, im: -a.im }),
+  abs2: (a) => a.re * a.re + a.im * a.im,
+  exp: (t) => ({ re: Math.cos(t), im: Math.sin(t) }),
+};
+
+function getSingleQubitMatrix(type, angle = 0) {
+  const s2 = Math.SQRT1_2;
+  const c = Math.cos(angle / 2), s = Math.sin(angle / 2);
+  switch (type) {
+    case 'I':   return [[{re:1,im:0},{re:0,im:0}], [{re:0,im:0},{re:1,im:0}]];
+    case 'H':   return [[{re:s2,im:0},{re:s2,im:0}], [{re:s2,im:0},{re:-s2,im:0}]];
+    case 'X':   return [[{re:0,im:0},{re:1,im:0}], [{re:1,im:0},{re:0,im:0}]];
+    case 'Y':   return [[{re:0,im:0},{re:0,im:-1}], [{re:0,im:1},{re:0,im:0}]];
+    case 'Z':   return [[{re:1,im:0},{re:0,im:0}], [{re:0,im:0},{re:-1,im:0}]];
+    case 'S':   return [[{re:1,im:0},{re:0,im:0}], [{re:0,im:0},{re:0,im:1}]];
+    case 'Sdg': return [[{re:1,im:0},{re:0,im:0}], [{re:0,im:0},{re:0,im:-1}]];
+    case 'T':   return [[{re:1,im:0},{re:0,im:0}], [{re:0,im:0},C.exp(Math.PI/4)]];
+    case 'Tdg': return [[{re:1,im:0},{re:0,im:0}], [{re:0,im:0},C.exp(-Math.PI/4)]];
+    case 'SX':  return [[{re:0.5,im:0.5},{re:0.5,im:-0.5}], [{re:0.5,im:-0.5},{re:0.5,im:0.5}]];
+    case 'P':   return [[{re:1,im:0},{re:0,im:0}], [{re:0,im:0},C.exp(angle)]];
+    case 'RX':  return [[{re:c,im:0},{re:0,im:-s}], [{re:0,im:-s},{re:c,im:0}]];
+    case 'RY':  return [[{re:c,im:0},{re:-s,im:0}], [{re:s,im:0},{re:c,im:0}]];
+    case 'RZ':  return [[C.exp(-angle/2),{re:0,im:0}], [{re:0,im:0},C.exp(angle/2)]];
+    default:    return [[{re:1,im:0},{re:0,im:0}], [{re:0,im:0},{re:1,im:0}]];
+  }
+}
+
+// Expand subcircuits and for-loops into a flat sequential list of primitive operations
+function compileCircuitOps(maxCol = null) {
+  const limit = maxCol === null ? state.numCols : maxCol;
+  const subMap = Object.fromEntries(state.subcircuits.map(s => [s.id, s]));
+
+  function expandOp(op, qOffset = 0, depth = 0) {
+    if (depth > 6) return [];
+    if (op.type === 'SUB') {
+      const sub = subMap[op.subId];
+      if (!sub) return [];
+      const sorted = [...sub.gates].sort((a, b) => a.col - b.col);
+      let out = [];
+      for (const sg of sorted) {
+        const mapped = {
+          ...sg,
+          qubits: sg.qubits.map(q => q + qOffset),
+          condBit: op.condBit !== undefined ? op.condBit : sg.condBit,
+        };
+        if (mapped.qubits.every(q => q >= 0 && q < state.numQubits)) {
+          out = out.concat(expandOp(mapped, qOffset, depth + 1));
+        }
+      }
+      return out;
+    }
+    return [op];
+  }
+
+  // Group gates by column
+  const byCol = Array.from({ length: state.numCols }, () => []);
+  for (const g of state.gates) {
+    if (g.col >= 0 && g.col < limit && g.qubits.every(q => q < state.numQubits)) {
+      byCol[g.col].push(g);
+    }
+  }
+
+  // Build flat op list honoring non-overlapping for-loops
+  const loopsSorted = [...state.forLoops]
+    .filter(l => l.startCol < limit)
+    .sort((a, b) => a.startCol - b.startCol);
+
+  const ops = [];
+  let col = 0;
+  while (col < limit) {
+    const loop = loopsSorted.find(l => l.startCol === col);
+    if (loop) {
+      const end = Math.min(loop.endCol, limit - 1);
+      for (let it = 0; it < loop.iterations; it++) {
+        for (let c = col; c <= end; c++) {
+          for (const g of byCol[c]) ops.push(...expandOp(g, g.qubits[0]));
+        }
+      }
+      col = end + 1;
+    } else {
+      for (const g of byCol[col]) ops.push(...expandOp(g, g.qubits[0]));
+      col++;
+    }
+  }
+  return ops;
+}
+
+// Apply gate to a pure statevector of length 2^n
+function applyGateSV(sv, n, op) {
+  const dim = 1 << n;
+  if (op.type === 'CNOT') {
+    const cMask = 1 << (n - 1 - op.qubits[0]);
+    const tMask = 1 << (n - 1 - op.qubits[1]);
+    for (let i = 0; i < dim; i++) {
+      if ((i & cMask) && !(i & tMask)) {
+        const j = i | tMask;
+        const tmp = sv[i]; sv[i] = sv[j]; sv[j] = tmp;
+      }
+    }
+    return;
+  }
+  if (op.type === 'SWAP') {
+    const m1 = 1 << (n - 1 - op.qubits[0]);
+    const m2 = 1 << (n - 1 - op.qubits[1]);
+    for (let i = 0; i < dim; i++) {
+      const b1 = (i & m1) ? 1 : 0;
+      const b2 = (i & m2) ? 1 : 0;
+      if (b1 === 1 && b2 === 0) {
+        const j = (i & ~m1) | m2;
+        const tmp = sv[i]; sv[i] = sv[j]; sv[j] = tmp;
+      }
+    }
+    return;
+  }
+  if (op.type === 'CCNOT') {
+    const c1 = 1 << (n - 1 - op.qubits[0]);
+    const c2 = 1 << (n - 1 - op.qubits[1]);
+    const tMask = 1 << (n - 1 - op.qubits[2]);
+    for (let i = 0; i < dim; i++) {
+      if ((i & c1) && (i & c2) && !(i & tMask)) {
+        const j = i | tMask;
+        const tmp = sv[i]; sv[i] = sv[j]; sv[j] = tmp;
+      }
+    }
+    return;
+  }
+  // Single-qubit unitary
+  const U = getSingleQubitMatrix(op.type, op.angle || 0);
+  const mask = 1 << (n - 1 - op.qubits[0]);
+  for (let i = 0; i < dim; i++) {
+    if (!(i & mask)) {
+      const j = i | mask;
+      const a0 = sv[i], a1 = sv[j];
+      sv[i] = C.add(C.mul(U[0][0], a0), C.mul(U[0][1], a1));
+      sv[j] = C.add(C.mul(U[1][0], a0), C.mul(U[1][1], a1));
+    }
+  }
+}
+
+// Stochastic single-qubit noise trajectory for shot mode (or n=6)
+function applyNoiseTrajectorySV(sv, n, qubits, noiseModel, p) {
+  if (noiseModel === 'none' || p <= 0) return;
+  for (const q of qubits) {
+    if (noiseModel === 'depolarizing') {
+      const r = Math.random();
+      if (r < p / 4) applyGateSV(sv, n, { type: 'X', qubits: [q] });
+      else if (r < p / 2) applyGateSV(sv, n, { type: 'Y', qubits: [q] });
+      else if (r < (3 * p) / 4) applyGateSV(sv, n, { type: 'Z', qubits: [q] });
+    } else if (noiseModel === 'thermal') {
+      // Amplitude damping + dephasing trajectory
+      const gamma = p;
+      const mask = 1 << (n - 1 - q);
+      let p1 = 0;
+      for (let i = 0; i < sv.length; i++) if (i & mask) p1 += C.abs2(sv[i]);
+      const pJump = gamma * p1;
+      if (Math.random() < pJump) {
+        // Jump |1> -> |0>
+        const next = sv.map(() => ({ re: 0, im: 0 }));
+        const norm = Math.sqrt(p1) || 1;
+        for (let i = 0; i < sv.length; i++) {
+          if (i & mask) next[i & ~mask] = C.scale(sv[i], 1 / norm);
+        }
+        for (let i = 0; i < sv.length; i++) sv[i] = next[i];
+      } else {
+        // No-jump Kraus K0
+        const s = Math.sqrt(1 - gamma);
+        let norm2 = 0;
+        for (let i = 0; i < sv.length; i++) {
+          if (i & mask) sv[i] = C.scale(sv[i], s);
+          norm2 += C.abs2(sv[i]);
+        }
+        const inv = 1 / (Math.sqrt(norm2) || 1);
+        for (let i = 0; i < sv.length; i++) sv[i] = C.scale(sv[i], inv);
+        // Pure dephasing Z flip
+        if (Math.random() < p * 0.5) applyGateSV(sv, n, { type: 'Z', qubits: [q] });
+      }
+    }
+  }
+}
+
+// Density matrix helpers (used for exact noise simulation up to 5 qubits)
+function svToDensity(sv) {
+  const dim = sv.length;
+  const rho = Array.from({ length: dim }, () => Array.from({ length: dim }, () => ({ re: 0, im: 0 })));
+  for (let i = 0; i < dim; i++) {
+    for (let j = 0; j < dim; j++) {
+      rho[i][j] = C.mul(sv[i], C.conj(sv[j]));
+    }
+  }
+  return rho;
+}
+
+function applySingleQubitKrausRho(rho, n, q, krausList) {
+  const dim = 1 << n;
+  const mask = 1 << (n - 1 - q);
+  const out = Array.from({ length: dim }, () => Array.from({ length: dim }, () => ({ re: 0, im: 0 })));
+  for (const K of krausList) {
+    // First compute temp = K * rho
+    const tmp = Array.from({ length: dim }, () => Array.from({ length: dim }, () => ({ re: 0, im: 0 })));
+    for (let i = 0; i < dim; i++) {
+      if (!(i & mask)) {
+        const i1 = i | mask;
+        for (let j = 0; j < dim; j++) {
+          tmp[i][j] = C.add(C.mul(K[0][0], rho[i][j]), C.mul(K[0][1], rho[i1][j]));
+          tmp[i1][j] = C.add(C.mul(K[1][0], rho[i][j]), C.mul(K[1][1], rho[i1][j]));
+        }
+      }
+    }
+    // Then out += tmp * K^\dagger
+    const Kd00 = C.conj(K[0][0]), Kd01 = C.conj(K[1][0]);
+    const Kd10 = C.conj(K[0][1]), Kd11 = C.conj(K[1][1]);
+    for (let i = 0; i < dim; i++) {
+      for (let j = 0; j < dim; j++) {
+        if (!(j & mask)) {
+          const j1 = j | mask;
+          const a = C.add(C.mul(tmp[i][j], Kd00), C.mul(tmp[i][j1], Kd10));
+          const b = C.add(C.mul(tmp[i][j], Kd01), C.mul(tmp[i][j1], Kd11));
+          out[i][j] = C.add(out[i][j], a);
+          out[i][j1] = C.add(out[i][j1], b);
+        }
+      }
+    }
+  }
+  return out;
+}
+
+function applyNoiseRho(rho, n, qubits, noiseModel, p) {
+  if (noiseModel === 'none' || p <= 0) return rho;
+  let cur = rho;
+  for (const q of qubits) {
+    if (noiseModel === 'depolarizing') {
+      const w0 = Math.sqrt(Math.max(0, 1 - 0.75 * p));
+      const wp = Math.sqrt(p / 4);
+      const scaleM = (M, s) => M.map(row => row.map(v => C.scale(v, s)));
+      cur = applySingleQubitKrausRho(cur, n, q, [
+        scaleM(getSingleQubitMatrix('I'), w0),
+        scaleM(getSingleQubitMatrix('X'), wp),
+        scaleM(getSingleQubitMatrix('Y'), wp),
+        scaleM(getSingleQubitMatrix('Z'), wp),
+      ]);
+    } else if (noiseModel === 'thermal') {
+      const g = Math.min(0.95, p);
+      const K0 = [[{re:1,im:0},{re:0,im:0}], [{re:0,im:0},{re:Math.sqrt(1-g),im:0}]];
+      const K1 = [[{re:0,im:0},{re:Math.sqrt(g),im:0}], [{re:0,im:0},{re:0,im:0}]];
+      cur = applySingleQubitKrausRho(cur, n, q, [K0, K1]);
+      const pz = Math.min(0.49, p * 0.5);
+      const D0 = [[{re:Math.sqrt(1-pz),im:0},{re:0,im:0}], [{re:0,im:0},{re:Math.sqrt(1-pz),im:0}]];
+      const D1 = [[{re:Math.sqrt(pz),im:0},{re:0,im:0}], [{re:0,im:0},{re:-Math.sqrt(pz),im:0}]];
+      cur = applySingleQubitKrausRho(cur, n, q, [D0, D1]);
+    }
+  }
+  return cur;
+}
+
+function applyPermGateRho(rho, n, op) {
+  const dim = 1 << n;
+  const perm = new Int32Array(dim);
+  for (let i = 0; i < dim; i++) {
+    let j = i;
+    if (op.type === 'CNOT') {
+      const c = 1 << (n - 1 - op.qubits[0]), t = 1 << (n - 1 - op.qubits[1]);
+      if (i & c) j = i ^ t;
+    } else if (op.type === 'SWAP') {
+      const m1 = 1 << (n - 1 - op.qubits[0]), m2 = 1 << (n - 1 - op.qubits[1]);
+      const b1 = (i & m1) ? 1 : 0, b2 = (i & m2) ? 1 : 0;
+      if (b1 !== b2) j = i ^ m1 ^ m2;
+    } else if (op.type === 'CCNOT') {
+      const c1 = 1 << (n - 1 - op.qubits[0]), c2 = 1 << (n - 1 - op.qubits[1]), t = 1 << (n - 1 - op.qubits[2]);
+      if ((i & c1) && (i & c2)) j = i ^ t;
+    }
+    perm[i] = j;
+  }
+  const out = Array.from({ length: dim }, () => Array.from({ length: dim }, () => ({ re: 0, im: 0 })));
+  for (let i = 0; i < dim; i++) {
+    const pi = perm[i];
+    for (let k = 0; k < dim; k++) out[pi][perm[k]] = rho[i][k];
+  }
+  return out;
+}
+
+// Compute Bloch vector (x, y, z) for each qubit from a list of weighted statevector branches
+function blochFromBranches(branches, n) {
+  const vectors = Array.from({ length: n }, () => ({ x: 0, y: 0, z: 0 }));
+  const dim = 1 << n;
+  for (const br of branches) {
+    const sv = br.sv, w = br.weight;
+    for (let q = 0; q < n; q++) {
+      const mask = 1 << (n - 1 - q);
+      let r00 = 0, r11 = 0, r01Re = 0, r01Im = 0;
+      for (let i = 0; i < dim; i++) {
+        if (!(i & mask)) {
+          const j = i | mask;
+          const a = sv[i], b = sv[j];
+          r00 += C.abs2(a);
+          r11 += C.abs2(b);
+          // rho_01 = a * conj(b)
+          r01Re += a.re * b.re + a.im * b.im;
+          r01Im += a.im * b.re - a.re * b.im;
+        }
+      }
+      vectors[q].x += w * (2 * r01Re);
+      vectors[q].y += w * (-2 * r01Im);
+      vectors[q].z += w * (r00 - r11);
+    }
+  }
+  return vectors;
+}
+
+function blochFromRho(rho, n) {
+  const vectors = Array.from({ length: n }, () => ({ x: 0, y: 0, z: 0 }));
+  const dim = 1 << n;
+  for (let q = 0; q < n; q++) {
+    const mask = 1 << (n - 1 - q);
+    let r00 = 0, r11 = 0, r01Re = 0, r01Im = 0;
+    for (let i = 0; i < dim; i++) {
+      if (!(i & mask)) {
+        const j = i | mask;
+        r00 += rho[i][i].re;
+        r11 += rho[j][j].re;
+        r01Re += rho[i][j].re;
+        r01Im += rho[i][j].im;
+      }
+    }
+    vectors[q].x = 2 * r01Re;
+    vectors[q].y = -2 * r01Im;
+    vectors[q].z = r00 - r11;
+  }
+  return vectors;
+}
+
+function getInitialIndex() {
+  const clean = state.initialState.padEnd(state.numQubits, '0').slice(0, state.numQubits).replace(/[^01]/g, '0');
+  return parseInt(clean || '0', 2);
+}
+
+function runQuantumSimulation() {
+  const n = state.numQubits;
+  const dim = 1 << n;
+  const ops = compileCircuitOps(state.stepLimit);
+  const initIdx = getInitialIndex();
+  const useExactNoise = state.mode === 'statevector' && state.noiseModel !== 'none' && n <= 5;
+
+  // --- CASE A: Exact Density Matrix with Noise (Statevector mode + Noise, n <= 5) ---
+  if (useExactNoise) {
+    const sv0 = Array.from({ length: dim }, (_, i) => ({ re: i === initIdx ? 1 : 0, im: 0 }));
+    let branches = [{ rho: svToDensity(sv0), weight: 1, cbits: new Int8Array(state.numCbits) }];
+
+    for (const op of ops) {
+      const nextBranches = [];
+      for (const br of branches) {
+        if (op.condBit !== undefined && op.condBit !== null && br.cbits[op.condBit] !== 1) {
+          nextBranches.push(br);
+          continue;
+        }
+        if (op.type === 'M') {
+          const mask = 1 << (n - 1 - op.qubits[0]);
+          let p0 = 0, p1 = 0;
+          for (let i = 0; i < dim; i++) {
+            if (i & mask) p1 += Math.max(0, br.rho[i][i].re);
+            else p0 += Math.max(0, br.rho[i][i].re);
+          }
+          const cb = op.cbit ?? op.qubits[0];
+          if (p0 > 1e-10) {
+            const rho0 = br.rho.map((row, r) => row.map((v, c) => (!(r & mask) && !(c & mask)) ? C.scale(v, 1 / p0) : { re: 0, im: 0 }));
+            const c0 = br.cbits.slice(); if (cb < c0.length) c0[cb] = 0;
+            nextBranches.push({ rho: rho0, weight: br.weight * p0, cbits: c0 });
+          }
+          if (p1 > 1e-10) {
+            const rho1 = br.rho.map((row, r) => row.map((v, c) => ((r & mask) && (c & mask)) ? C.scale(v, 1 / p1) : { re: 0, im: 0 }));
+            const c1 = br.cbits.slice(); if (cb < c1.length) c1[cb] = 1;
+            nextBranches.push({ rho: rho1, weight: br.weight * p1, cbits: c1 });
+          }
+        } else if (op.type === 'CNOT' || op.type === 'SWAP' || op.type === 'CCNOT') {
+          let rho = applyPermGateRho(br.rho, n, op);
+          rho = applyNoiseRho(rho, n, op.qubits, state.noiseModel, state.noiseParam);
+          nextBranches.push({ ...br, rho });
+        } else {
+          const U = getSingleQubitMatrix(op.type, op.angle || 0);
+          let rho = applySingleQubitKrausRho(br.rho, n, op.qubits[0], [U]);
+          rho = applyNoiseRho(rho, n, op.qubits, state.noiseModel, state.noiseParam);
+          nextBranches.push({ ...br, rho });
+        }
+      }
+      branches = nextBranches;
+    }
+
+    // Merge branches into total density matrix
+    const totalRho = Array.from({ length: dim }, () => Array.from({ length: dim }, () => ({ re: 0, im: 0 })));
+    for (const br of branches) {
+      for (let i = 0; i < dim; i++) {
+        for (let j = 0; j < dim; j++) {
+          totalRho[i][j] = C.add(totalRho[i][j], C.scale(br.rho[i][j], br.weight));
+        }
+      }
+    }
+    const probs = Array.from({ length: dim }, (_, i) => Math.max(0, totalRho[i][i].re));
+    const bloch = blochFromRho(totalRho, n);
+    return {
+      mode: 'statevector',
+      isMixed: true,
+      probs,
+      amplitudes: null,
+      diagRho: probs,
+      bloch,
+      counts: null,
+      shots: 0,
+    };
+  }
+
+  // --- CASE B: Exact Statevector / Branching (Statevector mode, no noise or n=6) ---
+  if (state.mode === 'statevector') {
+    const sv0 = Array.from({ length: dim }, (_, i) => ({ re: i === initIdx ? 1 : 0, im: 0 }));
+    let branches = [{ sv: sv0, weight: 1, cbits: new Int8Array(state.numCbits) }];
+
+    for (const op of ops) {
+      const nextBranches = [];
+      for (const br of branches) {
+        if (op.condBit !== undefined && op.condBit !== null && br.cbits[op.condBit] !== 1) {
+          nextBranches.push(br);
+          continue;
+        }
+        if (op.type === 'M') {
+          const mask = 1 << (n - 1 - op.qubits[0]);
+          let p0 = 0, p1 = 0;
+          for (let i = 0; i < dim; i++) {
+            const p = C.abs2(br.sv[i]);
+            if (i & mask) p1 += p; else p0 += p;
+          }
+          const cb = op.cbit ?? op.qubits[0];
+          if (p0 > 1e-10) {
+            const inv = 1 / Math.sqrt(p0);
+            const svA = br.sv.map((v, i) => !(i & mask) ? C.scale(v, inv) : { re: 0, im: 0 });
+            const c0 = br.cbits.slice(); if (cb < c0.length) c0[cb] = 0;
+            nextBranches.push({ sv: svA, weight: br.weight * p0, cbits: c0 });
+          }
+          if (p1 > 1e-10) {
+            const inv = 1 / Math.sqrt(p1);
+            const svB = br.sv.map((v, i) => (i & mask) ? C.scale(v, inv) : { re: 0, im: 0 });
+            const c1 = br.cbits.slice(); if (cb < c1.length) c1[cb] = 1;
+            nextBranches.push({ sv: svB, weight: br.weight * p1, cbits: c1 });
+          }
+        } else {
+          const svCopy = br.sv.map(v => ({ re: v.re, im: v.im }));
+          applyGateSV(svCopy, n, op);
+          nextBranches.push({ ...br, sv: svCopy });
+        }
+      }
+      branches = nextBranches;
+    }
+
+    const probs = new Array(dim).fill(0);
+    for (const br of branches) {
+      for (let i = 0; i < dim; i++) probs[i] += br.weight * C.abs2(br.sv[i]);
+    }
+    const bloch = blochFromBranches(branches, n);
+    const isPure = branches.length === 1;
+    return {
+      mode: 'statevector',
+      isMixed: !isPure,
+      probs,
+      amplitudes: isPure ? branches[0].sv : null,
+      diagRho: probs,
+      bloch,
+      counts: null,
+      shots: 0,
+    };
+  }
+
+  // --- CASE C: Shot Mode (Monte Carlo Sampling with optional Noise & Mid-Circuit Meas) ---
+  const shots = Math.max(10, Math.min(20000, parseInt(state.shots, 10) || 1024));
+  const counts = new Int32Array(dim);
+  const blochAccum = Array.from({ length: n }, () => ({ x: 0, y: 0, z: 0 }));
+  const hasMidMeas = ops.some(o => o.type === 'M');
+  const hasNoise = state.noiseModel !== 'none';
+
+  // Fast path if no noise and no mid-circuit measurements: compute SV once and sample!
+  if (!hasMidMeas && !hasNoise) {
+    const sv = Array.from({ length: dim }, (_, i) => ({ re: i === initIdx ? 1 : 0, im: 0 }));
+    for (const op of ops) applyGateSV(sv, n, op);
+    const cdf = new Float64Array(dim);
+    let acc = 0;
+    for (let i = 0; i < dim; i++) { acc += C.abs2(sv[i]); cdf[i] = acc; }
+    for (let s = 0; s < shots; s++) {
+      const r = Math.random() * acc;
+      let lo = 0, hi = dim - 1;
+      while (lo < hi) { const mid = (lo + hi) >> 1; if (cdf[mid] < r) lo = mid + 1; else hi = mid; }
+      counts[lo]++;
+    }
+    const probs = Array.from(counts, c => c / shots);
+    return {
+      mode: 'shot',
+      isMixed: false,
+      probs,
+      amplitudes: sv,
+      diagRho: probs,
+      bloch: blochFromBranches([{ sv, weight: 1 }], n),
+      counts: Array.from(counts),
+      shots,
+    };
+  }
+
+  // Full trajectory Monte Carlo (cap heavy trajectory count at 1500 for smooth 60fps UI, scale counts to shots)
+  const trajCount = Math.min(shots, 1200);
+  const scaleFactor = shots / trajCount;
+  const rawCounts = new Int32Array(dim);
+  for (let s = 0; s < trajCount; s++) {
+    const sv = Array.from({ length: dim }, (_, i) => ({ re: i === initIdx ? 1 : 0, im: 0 }));
+    const cbits = new Int8Array(state.numCbits);
+    for (const op of ops) {
+      if (op.condBit !== undefined && op.condBit !== null && cbits[op.condBit] !== 1) continue;
+      if (op.type === 'M') {
+        const mask = 1 << (n - 1 - op.qubits[0]);
+        let p1 = 0;
+        for (let i = 0; i < dim; i++) if (i & mask) p1 += C.abs2(sv[i]);
+        const res = Math.random() < p1 ? 1 : 0;
+        const cb = op.cbit ?? op.qubits[0];
+        if (cb < cbits.length) cbits[cb] = res;
+        const norm = Math.sqrt(res === 1 ? p1 : (1 - p1)) || 1;
+        for (let i = 0; i < dim; i++) {
+          const keep = ((i & mask) ? 1 : 0) === res;
+          sv[i] = keep ? C.scale(sv[i], 1 / norm) : { re: 0, im: 0 };
+        }
+      } else {
+        applyGateSV(sv, n, op);
+        if (hasNoise) applyNoiseTrajectorySV(sv, n, op.qubits, state.noiseModel, state.noiseParam);
+      }
+    }
+    // Accumulate Bloch for average state
+    const bv = blochFromBranches([{ sv, weight: 1 }], n);
+    for (let q = 0; q < n; q++) {
+      blochAccum[q].x += bv[q].x / trajCount;
+      blochAccum[q].y += bv[q].y / trajCount;
+      blochAccum[q].z += bv[q].z / trajCount;
+    }
+    // Sample outcome
+    let r = Math.random(), acc = 0, picked = dim - 1;
+    for (let i = 0; i < dim; i++) {
+      acc += C.abs2(sv[i]);
+      if (r <= acc) { picked = i; break; }
+    }
+    rawCounts[picked]++;
+  }
+  let assigned = 0;
+  for (let i = 0; i < dim; i++) {
+    counts[i] = Math.round(rawCounts[i] * scaleFactor);
+    assigned += counts[i];
+  }
+  if (assigned !== shots) {
+    let maxIdx = 0;
+    for (let i = 1; i < dim; i++) if (counts[i] > counts[maxIdx]) maxIdx = i;
+    counts[maxIdx] = Math.max(0, counts[maxIdx] + (shots - assigned));
+  }
+  const probs = Array.from(counts, c => c / shots);
+  return {
+    mode: 'shot',
+    isMixed: true,
+    probs,
+    amplitudes: null,
+    diagRho: probs,
+    bloch: blochAccum,
+    counts: Array.from(counts),
+    shots,
+  };
+}
+
+/* ============================================================================
+   4. REACTIVE EXECUTION CONTROLLER (DEBOUNCE + STALE CANCELLATION)
+   ============================================================================ */
+function scheduleSimulation(delayMs = 35, force = false) {
+  if (!state.autoExec && !force) return;
+  const ver = ++state.simVersion;
+  if (state.simTimer) clearTimeout(state.simTimer);
+
+  const labelEl = document.getElementById('autoExecLabel');
+  if (labelEl && state.autoExec) labelEl.textContent = 'Calculando...';
+
+  state.simTimer = setTimeout(() => {
+    if (ver !== state.simVersion) return; // Cancel obsolete execution
+    const res = runQuantumSimulation();
+    if (ver !== state.simVersion) return;
+    state.lastResult = res;
+    renderSimulationResults(res);
+    if (labelEl && state.autoExec) labelEl.textContent = 'Auto-ejecución';
+  }, delayMs);
+}
+
+/* ============================================================================
+   5. UI RENDERING: PALETTE, CIRCUIT GRID, SUBCIRCUITS, RESULTS, BLOCH 3D
+   ============================================================================ */
+function showToast(msg, tone = 'sky') {
+  const c = document.getElementById('toastContainer');
+  const tones = {
+    sky: 'bg-slate-900 border-sky-500/50 text-sky-200',
+    emerald: 'bg-slate-900 border-emerald-500/50 text-emerald-200',
+    amber: 'bg-slate-900 border-amber-500/50 text-amber-200',
+    rose: 'bg-slate-900 border-rose-500/50 text-rose-200',
+  };
+  const el = document.createElement('div');
+  el.className = `pointer-events-auto px-3.5 py-2.5 rounded-xl border text-xs font-medium shadow-xl transition-all ${tones[tone] || tones.sky}`;
+  el.textContent = msg;
+  c.appendChild(el);
+  setTimeout(() => { el.style.opacity = '0'; setTimeout(() => el.remove(), 220); }, 2800);
+}
+
+function formatAngle(rad) {
+  if (rad === undefined || rad === null) return '';
+  const piRatio = rad / Math.PI;
+  const fracs = [
+    [0, '0'], [0.25, 'π/4'], [-0.25, '-π/4'], [0.3333, 'π/3'], [-0.3333, '-π/3'],
+    [0.5, 'π/2'], [-0.5, '-π/2'], [0.75, '3π/4'], [1, 'π'], [-1, '-π'], [1.5, '3π/2'], [2, '2π']
+  ];
+  for (const [val, txt] of fracs) {
+    if (Math.abs(piRatio - val) < 0.015) return txt;
+  }
+  return rad.toFixed(2);
+}
+
+function renderPalette() {
+  const container = document.getElementById('gatePalette');
+  container.innerHTML = '';
+  for (const g of GATES) {
+    const isSel = state.selectedTool?.kind === 'gate' && state.selectedTool.type === g.id;
+    const btn = document.createElement('button');
+    btn.draggable = true;
+    btn.title = `${g.name}${g.qubits > 1 ? ` (${g.qubits} cúbits)` : ''}`;
+    btn.className = `gate-chip px-2 py-2 rounded-xl border text-xs font-bold font-mono-code flex flex-col items-center justify-center gap-0.5 ${g.color} ${isSel ? 'ring-2 ring-white scale-[1.03]' : ''}`;
+    btn.innerHTML = `<span>${g.label}</span><span class="text-[9px] font-sans font-normal opacity-75 truncate max-w-full">${g.qubits > 1 ? g.qubits + 'q' : (g.param ? 'θ' : '')}</span>`;
+
+    btn.addEventListener('dragstart', (e) => {
+      e.dataTransfer.setData('text/plain', JSON.stringify({ kind: 'gate', type: g.id }));
+    });
+    btn.addEventListener('click', () => {
+      if (isSel) {
+        state.selectedTool = null;
+        state.pendingMulti = null;
+      } else {
+        state.selectedTool = { kind: 'gate', type: g.id };
+        state.pendingMulti = null;
+      }
+      renderPalette();
+      renderSubcircuitLibrary();
+      updateMultiSelectBanner();
+    });
+    container.appendChild(btn);
+  }
+}
+
+function renderSubcircuitLibrary() {
+  const container = document.getElementById('subcircuitLibrary');
+  document.getElementById('subcircuitCountBadge').textContent = state.subcircuits.length;
+  container.innerHTML = '';
+  if (state.subcircuits.length === 0) {
+    container.innerHTML = `<p class="text-xs text-slate-500 italic">No hay subcircuitos guardados aún.</p>`;
+    return;
+  }
+  for (const sub of state.subcircuits) {
+    const isSel = state.selectedTool?.kind === 'sub' && state.selectedTool.subId === sub.id;
+    const card = document.createElement('div');
+    card.draggable = true;
+    card.className = `p-2.5 rounded-xl border bg-slate-900/90 transition cursor-grab ${isSel ? 'border-emerald-400 ring-1 ring-emerald-400' : 'border-slate-800 hover:border-emerald-500/40'}`;
+    card.innerHTML = `
+      <div class="flex items-start justify-between gap-2">
+        <div class="min-w-0">
+          <div class="text-xs font-bold text-emerald-300 truncate">${escapeHtml(sub.name)}</div>
+          <div class="text-[10px] text-slate-400 mt-0.5 line-clamp-2">${escapeHtml(sub.description || 'Sin descripción')}</div>
+        </div>
+        <span class="shrink-0 text-[10px] font-mono-code px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">${sub.numQubits}q</span>
+      </div>
+      <div class="flex items-center gap-1.5 mt-2 pt-1.5 border-t border-slate-800/80">
+        <button data-sub-insert="${sub.id}" class="flex-1 px-2 py-1 rounded-lg text-[10px] font-semibold bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-200">Insertar</button>
+        <button data-sub-inspect="${sub.id}" class="px-2 py-1 rounded-lg text-[10px] font-medium bg-slate-800 hover:bg-slate-700 text-slate-200">Visualizar / Editar</button>
+      </div>
+    `;
+    card.addEventListener('dragstart', (e) => {
+      e.dataTransfer.setData('text/plain', JSON.stringify({ kind: 'sub', subId: sub.id }));
+    });
+    card.querySelector(`[data-sub-insert="${sub.id}"]`).addEventListener('click', (e) => {
+      e.stopPropagation();
+      state.selectedTool = isSel ? null : { kind: 'sub', subId: sub.id };
+      state.pendingMulti = null;
+      renderPalette();
+      renderSubcircuitLibrary();
+      updateMultiSelectBanner();
+      if (!isSel) showToast(`Haz clic en el cúbit inicial en la cuadrícula para insertar "${sub.name}" (${sub.numQubits} cúbits).`, 'emerald');
+    });
+    card.querySelector(`[data-sub-inspect="${sub.id}"]`).addEventListener('click', (e) => {
+      e.stopPropagation();
+      openInspectSubcircuitModal(sub.id);
+    });
+    container.appendChild(card);
+  }
+}
+
+function updateMultiSelectBanner() {
+  const banner = document.getElementById('multiSelectBanner');
+  const txt = document.getElementById('multiSelectText');
+  if (state.pendingMulti) {
+    banner.classList.remove('hidden');
+    const pm = state.pendingMulti;
+    if (pm.type === 'CNOT') {
+      txt.textContent = `CNOT en capa ${pm.col + 1}: Control fijado en q${pm.qubits[0]}. Haz clic en el cúbit OBJETIVO en la misma columna.`;
+    } else if (pm.type === 'SWAP') {
+      txt.textContent = `SWAP en capa ${pm.col + 1}: Primer cúbit q${pm.qubits[0]}. Haz clic en el segundo cúbit en la misma columna.`;
+    } else if (pm.type === 'CCNOT') {
+      const step = pm.qubits.length === 1 ? 'segundo cúbit de CONTROL' : 'cúbit OBJETIVO';
+      txt.textContent = `Toffoli (CCNOT) en capa ${pm.col + 1}: Controles [${pm.qubits.map(q=>'q'+q).join(', ')}]. Haz clic en el ${step} en la misma columna.`;
+    }
+  } else if (state.selectedTool) {
+    banner.classList.remove('hidden');
+    if (state.selectedTool.kind === 'gate') {
+      const g = GATE_MAP[state.selectedTool.type];
+      txt.textContent = `Herramienta activa: ${g.name}. Haz clic en una celda de la cuadrícula para colocarla.`;
+    } else {
+      const sub = state.subcircuits.find(s => s.id === state.selectedTool.subId);
+      txt.textContent = `Subcircuito "${sub?.name}": haz clic en la celda (cúbit superior, capa) donde deseas insertarlo.`;
+    }
+  } else {
+    banner.classList.add('hidden');
+  }
+}
+
+function renderForLoopsBar() {
+  const bar = document.getElementById('forLoopsBar');
+  if (state.forLoops.length === 0) {
+    bar.classList.add('hidden');
+    bar.innerHTML = '';
+    return;
+  }
+  bar.classList.remove('hidden');
+  bar.innerHTML = `<span class="text-[11px] font-semibold text-violet-300">Ciclos for activos:</span>`;
+  for (const loop of state.forLoops) {
+    const tag = document.createElement('div');
+    tag.className = 'flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-violet-500/15 border border-violet-500/40 text-xs text-violet-200 font-mono-code';
+    tag.innerHTML = `
+      <span>for (×${loop.iterations}) [capas ${loop.startCol + 1}–${loop.endCol + 1}]</span>
+      <button data-del-loop="${loop.id}" class="text-violet-300 hover:text-rose-300 ml-1" title="Eliminar ciclo">×</button>
+    `;
+    tag.querySelector('[data-del-loop]').addEventListener('click', () => {
+      state.forLoops = state.forLoops.filter(l => l.id !== loop.id);
+      renderCircuitGrid();
+      scheduleSimulation();
+    });
+    bar.appendChild(tag);
+  }
+}
+
+function findGateAt(q, col) {
+  return state.gates.find(g => g.col === col && g.qubits.includes(q));
+}
+
+function findSubCovering(q, col) {
+  const subMap = Object.fromEntries(state.subcircuits.map(s => [s.id, s]));
+  return state.gates.find(g => {
+    if (g.type !== 'SUB' || g.col !== col) return false;
+    const sub = subMap[g.subId];
+    const span = sub ? sub.numQubits : 1;
+    return q >= g.qubits[0] && q < g.qubits[0] + span;
+  });
+}
+
+function renderCircuitGrid() {
+  renderForLoopsBar();
+  const grid = document.getElementById('circuitGrid');
+  const subMap = Object.fromEntries(state.subcircuits.map(s => [s.id, s]));
+  const stepLim = state.stepLimit === null ? state.numCols : state.stepLimit;
+
+  // Update scrubber bounds
+  const scrub = document.getElementById('stepScrubber');
+  scrub.max = state.numCols;
+  scrub.value = stepLim;
+  document.getElementById('stepScrubberLabel').textContent =
+    stepLim === state.numCols ? 'Capa final' : (stepLim === 0 ? 'Estado inicial' : `Tras capa ${stepLim}`);
+
+  let html = `<div class="min-w-max">`;
+
+  // Column header row (showing for-loop brackets + step numbers)
+  html += `<div class="flex items-center mb-1 pl-16">`;
+  for (let c = 0; c < state.numCols; c++) {
+    const loop = state.forLoops.find(l => c >= l.startCol && c <= l.endCol);
+    const isStart = loop && c === loop.startCol;
+    const isEnd = loop && c === loop.endCol;
+    const inStep = c < stepLim;
+    html += `<div class="w-14 shrink-0 text-center relative">
+      ${loop ? `<div class="text-[9px] font-mono-code font-bold text-violet-300 bg-violet-500/20 border-t-2 border-violet-400 ${isStart ? 'rounded-tl border-l-2' : ''} ${isEnd ? 'rounded-tr border-r-2' : ''} py-0.5 mb-0.5">${isStart ? 'for×'+loop.iterations : '&nbsp;'}</div>` : ''}
+      <span class="text-[10px] font-mono-code ${inStep ? 'text-slate-400' : 'text-slate-600'}">${c + 1}</span>
+    </div>`;
+  }
+  html += `</div>`;
+
+  // Qubit rows
+  const initBits = state.initialState.padEnd(state.numQubits, '0').slice(0, state.numQubits);
+  for (let q = 0; q < state.numQubits; q++) {
+    const initBit = initBits[q] === '1' ? '1' : '0';
+    html += `<div class="flex items-center h-14 relative">`;
+    // Qubit label (clickable to toggle initial bit!)
+    html += `<button data-toggle-init-q="${q}" title="Clic para alternar el estado inicial de q${q}" class="w-16 shrink-0 pr-2 flex items-center justify-end gap-1 text-xs font-mono-code text-slate-300 hover:text-sky-300 transition">
+      <span class="font-bold">q${q}</span>
+      <span class="px-1 py-0.5 rounded bg-slate-800 border border-slate-700 text-[10px] text-sky-300">|${initBit}⟩</span>
+    </button>`;
+
+    for (let c = 0; c < state.numCols; c++) {
+      const loop = state.forLoops.find(l => c >= l.startCol && c <= l.endCol);
+      const inStep = c < stepLim;
+      const isPending = state.pendingMulti && state.pendingMulti.col === c && state.pendingMulti.qubits.includes(q);
+
+      // Check vertical connector line from multi-qubit gates in this column
+      const multiInCol = state.gates.find(g => g.col === c && g.qubits.length > 1 && q >= Math.min(...g.qubits) && q <= Math.max(...g.qubits));
+      const hasVertical = !!multiInCol;
+      const isTopMulti = multiInCol && q === Math.min(...multiInCol.qubits);
+      const isBotMulti = multiInCol && q === Math.max(...multiInCol.qubits);
+
+      const gate = findGateAt(q, c);
+      const subCover = findSubCovering(q, c);
+
+      let cellContent = '';
+      if (subCover) {
+        const sub = subMap[subCover.subId];
+        const span = sub ? sub.numQubits : 1;
+        const isTop = q === subCover.qubits[0];
+        if (isTop) {
+          cellContent = `
+            <div data-gate-id="${subCover.id}" class="relative z-20 w-12 h-10 rounded-xl bg-emerald-500/20 border border-emerald-400/70 text-emerald-200 flex flex-col items-center justify-center cursor-pointer shadow-md group" title="Subcircuito: ${escapeHtml(sub?.name || 'Sub')} (clic para inspeccionar, × para quitar)">
+              <span class="text-[9px] font-bold truncate max-w-[44px] px-0.5">${escapeHtml(sub?.name || 'SUB')}</span>
+              <span class="text-[8px] font-mono-code opacity-80">${span}q</span>
+              <button data-del-gate="${subCover.id}" class="hidden group-hover:flex absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-rose-500 text-white text-[10px] items-center justify-center shadow">×</button>
+            </div>`;
+        } else {
+          cellContent = `<div data-gate-id="${subCover.id}" class="relative z-20 w-12 h-9 rounded-lg bg-emerald-500/10 border border-dashed border-emerald-400/50 text-emerald-300 text-[9px] font-mono-code flex items-center justify-center cursor-pointer">│</div>`;
+        }
+      } else if (gate) {
+        const def = GATE_MAP[gate.type];
+        const condBadge = (gate.condBit !== undefined && gate.condBit !== null)
+          ? `<span class="absolute -bottom-1.5 left-1/2 -translate-x-1/2 px-1 rounded bg-amber-500 text-slate-950 text-[8px] font-bold font-mono-code leading-tight">c${gate.condBit}=1</span>`
+          : '';
+        const delBtn = `<button data-del-gate="${gate.id}" class="hidden group-hover:flex absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-rose-500 text-white text-[10px] items-center justify-center shadow z-30">×</button>`;
+
+        if (gate.type === 'CNOT') {
+          if (q === gate.qubits[0]) {
+            cellContent = `<div data-gate-id="${gate.id}" class="relative z-20 w-5 h-5 rounded-full bg-cyan-400 border-2 border-cyan-200 shadow-lg shadow-cyan-500/40 cursor-pointer group">${delBtn}</div>`;
+          } else {
+            cellContent = `<div data-gate-id="${gate.id}" class="relative z-20 w-9 h-9 rounded-full bg-cyan-500/20 border-2 border-cyan-400 text-cyan-200 font-bold text-lg flex items-center justify-center cursor-pointer group">⊕${condBadge}${delBtn}</div>`;
+          }
+        } else if (gate.type === 'CCNOT') {
+          if (q === gate.qubits[2]) {
+            cellContent = `<div data-gate-id="${gate.id}" class="relative z-20 w-9 h-9 rounded-full bg-fuchsia-500/20 border-2 border-fuchsia-400 text-fuchsia-200 font-bold text-lg flex items-center justify-center cursor-pointer group">⊕${condBadge}${delBtn}</div>`;
+          } else {
+            cellContent = `<div data-gate-id="${gate.id}" class="relative z-20 w-5 h-5 rounded-full bg-fuchsia-400 border-2 border-fuchsia-200 shadow-lg shadow-fuchsia-500/40 cursor-pointer group">${delBtn}</div>`;
+          }
+        } else if (gate.type === 'SWAP') {
+          cellContent = `<div data-gate-id="${gate.id}" class="relative z-20 w-8 h-8 rounded-lg bg-teal-500/20 border border-teal-400 text-teal-200 font-bold text-sm flex items-center justify-center cursor-pointer group">×${delBtn}</div>`;
+        } else if (gate.type === 'M') {
+          const cb = gate.cbit ?? gate.qubits[0];
+          cellContent = `<div data-gate-id="${gate.id}" class="relative z-20 w-11 h-10 rounded-xl border ${def.color} flex flex-col items-center justify-center cursor-pointer group">
+            <span class="text-xs font-bold font-mono-code">M</span>
+            <span class="text-[8px] font-mono-code opacity-85">→c${cb}</span>
+            ${delBtn}
+          </div>`;
+        } else {
+          const angleTxt = def?.param ? `<span class="text-[8px] font-mono-code opacity-85">${formatAngle(gate.angle)}</span>` : '';
+          cellContent = `<div data-gate-id="${gate.id}" class="relative z-20 w-11 h-10 rounded-xl border ${def?.color || 'bg-slate-700 border-slate-500'} flex flex-col items-center justify-center cursor-pointer group shadow">
+            <span class="text-xs font-bold font-mono-code leading-none">${def?.label || gate.type}</span>
+            ${angleTxt}
+            ${condBadge}
+            ${delBtn}
+          </div>`;
+        }
+      } else if (isPending) {
+        cellContent = `<div class="relative z-20 w-6 h-6 rounded-full bg-sky-400/30 border-2 border-sky-400 animate-pulse"></div>`;
+      }
+
+      html += `
+        <div data-cell-q="${q}" data-cell-c="${c}" class="circuit-cell w-14 h-14 shrink-0 relative flex items-center justify-center cursor-pointer ${loop ? 'bg-violet-500/[0.05]' : ''} ${c === stepLim - 1 && stepLim < state.numCols ? 'active-step border-r-2 border-indigo-400/70' : ''} ${!inStep ? 'opacity-40' : ''}">
+          <!-- Horizontal quantum wire -->
+          <div class="absolute inset-x-0 top-1/2 -translate-y-1/2 h-[2px] bg-slate-700 pointer-events-none"></div>
+          <!-- Vertical multi-qubit connector -->
+          ${hasVertical ? `<div class="absolute left-1/2 -translate-x-1/2 w-[2px] bg-cyan-400/75 pointer-events-none ${isTopMulti ? 'top-1/2 bottom-0' : (isBotMulti ? 'top-0 bottom-1/2' : 'inset-y-0')}"></div>` : ''}
+          ${cellContent}
+        </div>`;
+    }
+    html += `</div>`;
+  }
+
+  // Classical register wire at bottom
+  html += `<div class="flex items-center h-9 mt-1">
+    <div class="w-16 shrink-0 pr-2 text-right text-[11px] font-mono-code text-amber-300/90 font-semibold">c[${state.numCbits}]</div>`;
+  for (let c = 0; c < state.numCols; c++) {
+    const measInCol = state.gates.find(g => g.col === c && g.type === 'M');
+    const condInCol = state.gates.find(g => g.col === c && g.condBit !== undefined && g.condBit !== null);
+    html += `<div class="w-14 h-9 shrink-0 relative flex items-center justify-center">
+      <div class="absolute inset-x-0 top-1/2 -translate-y-1/2 h-[4px] border-y border-amber-500/40 pointer-events-none"></div>
+      ${measInCol ? `<span class="relative z-10 px-1.5 py-0.5 rounded bg-emerald-950 border border-emerald-500/50 text-[9px] font-mono-code text-emerald-300">c${measInCol.cbit ?? measInCol.qubits[0]}</span>` : ''}
+      ${!measInCol && condInCol ? `<span class="relative z-10 px-1.5 py-0.5 rounded bg-amber-950 border border-amber-500/50 text-[9px] font-mono-code text-amber-300">if c${condInCol.condBit}</span>` : ''}
+    </div>`;
+  }
+  html += `</div></div>`;
+
+  grid.innerHTML = html;
+
+  // Bind cell interactions
+  grid.querySelectorAll('[data-toggle-init-q]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const q = parseInt(btn.dataset.toggleInitQ, 10);
+      const arr = state.initialState.padEnd(state.numQubits, '0').slice(0, state.numQubits).split('');
+      arr[q] = arr[q] === '1' ? '0' : '1';
+      state.initialState = arr.join('');
+      document.getElementById('cfgInitState').value = state.initialState;
+      renderCircuitGrid();
+      scheduleSimulation(15);
+    });
+  });
+
+  grid.querySelectorAll('[data-del-gate]').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const id = btn.dataset.delGate;
+      state.gates = state.gates.filter(g => g.id !== id);
+      renderCircuitGrid();
+      scheduleSimulation(15);
+    });
+  });
+
+  grid.querySelectorAll('[data-gate-id]').forEach(el => {
+    el.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const id = el.dataset.gateId;
+      const g = state.gates.find(x => x.id === id);
+      if (!g) return;
+      if (g.type === 'SUB') {
+        openInspectSubcircuitModal(g.subId);
+      } else {
+        openGateConfigModal(g.id);
+      }
+    });
+  });
+
+  grid.querySelectorAll('.circuit-cell').forEach(cell => {
+    const q = parseInt(cell.dataset.cellQ, 10);
+    const c = parseInt(cell.dataset.cellC, 10);
+
+    cell.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      cell.classList.add('drag-over');
+    });
+    cell.addEventListener('dragleave', () => cell.classList.remove('drag-over'));
+    cell.addEventListener('drop', (e) => {
+      e.preventDefault();
+      cell.classList.remove('drag-over');
+      try {
+        const payload = JSON.parse(e.dataTransfer.getData('text/plain'));
+        handlePlacement(payload, q, c);
+      } catch (err) {}
+    });
+    cell.addEventListener('click', () => {
+      if (state.pendingMulti) {
+        continueMultiPlacement(q, c);
+      } else if (state.selectedTool) {
+        handlePlacement(state.selectedTool, q, c);
+      }
+    });
+  });
+}
+
+function clearCellConflicts(qubits, col) {
+  const qSet = new Set(qubits);
+  const subMap = Object.fromEntries(state.subcircuits.map(s => [s.id, s]));
+  state.gates = state.gates.filter(g => {
+    if (g.col !== col) return true;
+    if (g.type === 'SUB') {
+      const span = subMap[g.subId]?.numQubits || 1;
+      for (let qq = g.qubits[0]; qq < g.qubits[0] + span; qq++) {
+        if (qSet.has(qq)) return false;
+      }
+      return true;
+    }
+    return !g.qubits.some(qq => qSet.has(qq));
+  });
+}
+
+function handlePlacement(tool, q, col) {
+  if (tool.kind === 'sub') {
+    const sub = state.subcircuits.find(s => s.id === tool.subId);
+    if (!sub) return;
+    if (q + sub.numQubits > state.numQubits) {
+      showToast(`No hay suficientes cúbits disponibles: "${sub.name}" requiere ${sub.numQubits} cúbits y desde q${q} solo quedan ${state.numQubits - q}.`, 'rose');
+      return;
+    }
+    const targetQubits = Array.from({ length: sub.numQubits }, (_, i) => q + i);
+    clearCellConflicts(targetQubits, col);
+    state.gates.push({ id: nextUid('subinst'), type: 'SUB', subId: sub.id, col, qubits: [q] });
+    renderCircuitGrid();
+    scheduleSimulation(15);
+    return;
+  }
+
+  const def = GATE_MAP[tool.type];
+  if (!def) return;
+
+  if (def.qubits === 1) {
+    clearCellConflicts([q], col);
+    const newGate = {
+      id: nextUid('g'),
+      type: def.id,
+      col,
+      qubits: [q],
+    };
+    if (def.param) newGate.angle = def.defaultAngle;
+    if (def.id === 'M') newGate.cbit = Math.min(q, state.numCbits - 1);
+    state.gates.push(newGate);
+    renderCircuitGrid();
+    scheduleSimulation(15);
+  } else {
+    if (state.numQubits < def.qubits) {
+      showToast(`La compuerta ${def.name} requiere al menos ${def.qubits} cúbits.`, 'amber');
+      return;
+    }
+    state.pendingMulti = { type: def.id, col, qubits: [q] };
+    updateMultiSelectBanner();
+    renderCircuitGrid();
+  }
+}
+
+function continueMultiPlacement(q, col) {
+  const pm = state.pendingMulti;
+  if (!pm) return;
+  if (col !== pm.col) {
+    showToast(`Selecciona el siguiente cúbit en la misma columna (capa ${pm.col + 1}).`, 'amber');
+    return;
+  }
+  if (pm.qubits.includes(q)) {
+    showToast('Debes elegir un cúbit diferente.', 'amber');
+    return;
+  }
+  pm.qubits.push(q);
+  const needed = GATE_MAP[pm.type].qubits;
+  if (pm.qubits.length === needed) {
+    clearCellConflicts(pm.qubits, pm.col);
+    state.gates.push({ id: nextUid('g'), type: pm.type, col: pm.col, qubits: [...pm.qubits] });
+    state.pendingMulti = null;
+    updateMultiSelectBanner();
+    renderCircuitGrid();
+    scheduleSimulation(15);
+  } else {
+    updateMultiSelectBanner();
+    renderCircuitGrid();
+  }
+}
+
+/* ============================================================================
+   6. RESULTS RENDERING: CHART.JS HISTOGRAM, AMPLITUDES TABLE, 3D BLOCH SPHERES
+   ============================================================================ */
+let probChartInstance = null;
+
+function renderSimulationResults(res) {
+  const n = state.numQubits;
+  const dim = 1 << n;
+  const labels = Array.from({ length: dim }, (_, i) => `|${i.toString(2).padStart(n, '0')}⟩`);
+
+  // Dominant state
+  let domIdx = 0;
+  for (let i = 1; i < dim; i++) if (res.probs[i] > res.probs[domIdx]) domIdx = i;
+  document.getElementById('dominantStateKet').textContent = labels[domIdx];
+  document.getElementById('dominantStateProb').textContent = `${(res.probs[domIdx] * 100).toFixed(1)}%`;
+
+  const noiseLabel = state.noiseModel === 'none' ? 'Sin ruido' :
+    (state.noiseModel === 'depolarizing' ? `Depolarizing (p=${state.noiseParam})` : `Thermal Relaxation (γ=${state.noiseParam})`);
+  document.getElementById('simMetaInfo').textContent =
+    `${res.mode === 'shot' ? `Modo Shot (${res.shots} disparos)` : 'Modo Statevector'} · ${noiseLabel}`;
+
+  // Histogram (show top 16 non-zero or all if <= 16)
+  let displayIndices = Array.from({ length: dim }, (_, i) => i);
+  if (dim > 16) {
+    displayIndices = displayIndices.filter(i => res.probs[i] > 0.001);
+    if (displayIndices.length === 0) displayIndices = [0];
+    if (displayIndices.length > 16) {
+      displayIndices.sort((a, b) => res.probs[b] - res.probs[a]);
+      displayIndices = displayIndices.slice(0, 16).sort((a, b) => a - b);
+    }
+  }
+  const chartLabels = displayIndices.map(i => labels[i]);
+  const chartValues = displayIndices.map(i => Number((res.probs[i] * 100).toFixed(2)));
+
+  const ctx = document.getElementById('probChart').getContext('2d');
+  if (!probChartInstance) {
+    probChartInstance = new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: chartLabels,
+        datasets: [{
+          label: 'Probabilidad (%)',
+          data: chartValues,
+          backgroundColor: 'rgba(56, 189, 248, 0.72)',
+          borderColor: 'rgba(125, 211, 252, 1)',
+          borderWidth: 1,
+          borderRadius: 6,
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        animation: { duration: 220 },
+        plugins: { legend: { display: false } },
+        scales: {
+          y: { beginAtZero: true, max: 100, grid: { color: 'rgba(51,65,85,0.4)' }, ticks: { color: '#94a3b8', callback: v => v + '%' } },
+          x: { grid: { display: false }, ticks: { color: '#cbd5e1', font: { family: 'monospace', size: 11 } } }
+        }
+      }
+    });
+  } else {
+    probChartInstance.data.labels = chartLabels;
+    probChartInstance.data.datasets[0].data = chartValues;
+    probChartInstance.update();
+  }
+
+  // Amplitudes Table
+  renderAmplitudesTable(res, labels);
+
+  // 3D Bloch Spheres with transition animation
+  updateBlochSpheres(res.bloch);
+}
+
+function renderAmplitudesTable(res, labels) {
+  const tbody = document.getElementById('amplitudesTableBody');
+  const hideZero = document.getElementById('hideZeroAmpChk').checked;
+  const rows = [];
+  for (let i = 0; i < res.probs.length; i++) {
+    const p = res.probs[i];
+    if (hideZero && p < 1e-5) continue;
+    let ampStr = `ρ=${p.toFixed(3)}`;
+    let phaseStr = '—';
+    if (res.amplitudes) {
+      const a = res.amplitudes[i];
+      const sign = a.im >= 0 ? '+' : '-';
+      ampStr = `${a.re.toFixed(3)} ${sign} ${Math.abs(a.im).toFixed(3)}i`;
+      const ang = Math.atan2(a.im, a.re);
+      phaseStr = `${(ang * 180 / Math.PI).toFixed(0)}°`;
+    }
+    const countTxt = res.counts ? ` (${res.counts[i]})` : '';
+    rows.push(`
+      <tr class="hover:bg-slate-800/40">
+        <td class="py-1.5 px-2.5 text-sky-300 font-semibold">${labels[i]}</td>
+        <td class="py-1.5 px-2.5 text-slate-300">${ampStr}</td>
+        <td class="py-1.5 px-2.5 text-slate-400">${phaseStr}</td>
+        <td class="py-1.5 px-2.5 text-right text-emerald-300 font-semibold">${(p * 100).toFixed(1)}%${countTxt}</td>
+      </tr>
+    `);
+  }
+  tbody.innerHTML = rows.length ? rows.join('') : `<tr><td colspan="4" class="py-4 text-center text-slate-500">Sin estados activos</td></tr>`;
+}
+
+// Interactive 3D Bloch Sphere Renderer (Canvas 2D with custom 3D projection & smooth animation)
+let blochAnimId = null;
+
+function ensureBlochCards(n) {
+  const grid = document.getElementById('blochSpheresGrid');
+  if (grid.children.length === n) return;
+  grid.innerHTML = '';
+  state.blochViews = Array.from({ length: n }, (_, q) => {
+    const initBit = state.initialState[q] === '1' ? -1 : 1;
+    return {
+      yaw: 0.65,
+      pitch: 0.35,
+      from: { x: 0, y: 0, z: initBit },
+      to: { x: 0, y: 0, z: initBit },
+      cur: { x: 0, y: 0, z: initBit },
+      t: 1,
+    };
+  });
+
+  for (let q = 0; q < n; q++) {
+    const card = document.createElement('div');
+    card.className = 'bg-slate-900/85 rounded-xl p-3 border border-slate-800 flex flex-col items-center';
+    card.innerHTML = `
+      <div class="w-full flex items-center justify-between text-xs mb-1">
+        <span class="font-mono-code font-bold text-sky-300">Cúbit q${q}</span>
+        <span id="blochPurity_${q}" class="text-[10px] font-mono-code text-slate-400">|r| = 1.00</span>
+      </div>
+      <canvas id="blochCanvas_${q}" width="220" height="200" class="w-full max-w-[220px] h-[200px] cursor-grab active:cursor-grabbing"></canvas>
+      <div id="blochCoords_${q}" class="text-[10px] font-mono-code text-slate-400 mt-1">x: 0.00 · y: 0.00 · z: 1.00</div>
+    `;
+    grid.appendChild(card);
+
+    // Drag to rotate in 3D
+    const canvas = card.querySelector('canvas');
+    let dragging = false, lastX = 0, lastY = 0;
+    const onDown = (x, y) => { dragging = true; lastX = x; lastY = y; };
+    const onMove = (x, y) => {
+      if (!dragging) return;
+      state.blochViews[q].yaw += (x - lastX) * 0.012;
+      state.blochViews[q].pitch = Math.max(-1.4, Math.min(1.4, state.blochViews[q].pitch + (y - lastY) * 0.012));
+      lastX = x; lastY = y;
+      drawSingleBloch(q);
+    };
+    canvas.addEventListener('mousedown', (e) => onDown(e.clientX, e.clientY));
+    window.addEventListener('mousemove', (e) => onMove(e.clientX, e.clientY));
+    window.addEventListener('mouseup', () => { dragging = false; });
+    canvas.addEventListener('touchstart', (e) => { if (e.touches[0]) onDown(e.touches[0].clientX, e.touches[0].clientY); }, { passive: true });
+    canvas.addEventListener('touchmove', (e) => { if (e.touches[0]) onMove(e.touches[0].clientX, e.touches[0].clientY); }, { passive: true });
+    canvas.addEventListener('touchend', () => { dragging = false; });
+  }
+}
+
+function updateBlochSpheres(newVectors, fromInitial = false) {
+  const n = newVectors.length;
+  ensureBlochCards(n);
+  const initBits = state.initialState.padEnd(n, '0');
+  for (let q = 0; q < n; q++) {
+    const bv = state.blochViews[q];
+    bv.from = fromInitial
+      ? { x: 0, y: 0, z: initBits[q] === '1' ? -1 : 1 }
+      : { ...bv.cur };
+    bv.to = { ...newVectors[q] };
+    bv.t = 0;
+  }
+  if (blochAnimId) cancelAnimationFrame(blochAnimId);
+  const start = performance.now();
+  const dur = 420;
+  function step(now) {
+    const p = Math.min(1, (now - start) / dur);
+    const ease = 1 - Math.pow(1 - p, 3);
+    for (let q = 0; q < state.blochViews.length; q++) {
+      const bv = state.blochViews[q];
+      bv.cur = {
+        x: bv.from.x + (bv.to.x - bv.from.x) * ease,
+        y: bv.from.y + (bv.to.y - bv.from.y) * ease,
+        z: bv.from.z + (bv.to.z - bv.from.z) * ease,
+      };
+      drawSingleBloch(q);
+    }
+    if (p < 1) blochAnimId = requestAnimationFrame(step);
+  }
+  blochAnimId = requestAnimationFrame(step);
+}
+
+function drawSingleBloch(q) {
+  const canvas = document.getElementById(`blochCanvas_${q}`);
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const bv = state.blochViews[q];
+  const w = canvas.width, h = canvas.height;
+  const cx = w / 2, cy = h / 2, R = 74;
+
+  ctx.clearRect(0, 0, w, h);
+
+  // Project 3D point (x, y, z) where z is up, x comes toward viewer, y is right
+  const cyaw = Math.cos(bv.yaw), syaw = Math.sin(bv.yaw);
+  const cpitch = Math.cos(bv.pitch), spitch = Math.sin(bv.pitch);
+  const proj = (x, y, z) => {
+    const x1 = y * cyaw - x * syaw;
+    const z1 = y * syaw + x * cyaw;
+    const y2 = z * cpitch - z1 * spitch;
+    const z2 = z * spitch + z1 * cpitch;
+    return { px: cx + x1 * R, py: cy - y2 * R, depth: z2 };
+  };
+
+  // Outer sphere silhouette
+  const grad = ctx.createRadialGradient(cx - 22, cy - 22, 10, cx, cy, R);
+  grad.addColorStop(0, 'rgba(56, 189, 248, 0.14)');
+  grad.addColorStop(1, 'rgba(15, 23, 42, 0.45)');
+  ctx.beginPath();
+  ctx.arc(cx, cy, R, 0, Math.PI * 2);
+  ctx.fillStyle = grad;
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(100, 116, 139, 0.55)';
+  ctx.lineWidth = 1.2;
+  ctx.stroke();
+
+  // Equator & meridians
+  const drawCircle = (fn, color) => {
+    ctx.beginPath();
+    for (let i = 0; i <= 48; i++) {
+      const a = (i / 48) * Math.PI * 2;
+      const p = fn(a);
+      if (i === 0) ctx.moveTo(p.px, p.py); else ctx.lineTo(p.px, p.py);
+    }
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 0.8;
+    ctx.stroke();
+  };
+  drawCircle(a => proj(Math.cos(a), Math.sin(a), 0), 'rgba(148, 163, 184, 0.28)');
+  drawCircle(a => proj(Math.cos(a), 0, Math.sin(a)), 'rgba(148, 163, 184, 0.16)');
+  drawCircle(a => proj(0, Math.cos(a), Math.sin(a)), 'rgba(148, 163, 184, 0.16)');
+
+  // Axes
+  const drawAxis = (p1, p2, label, color) => {
+    ctx.beginPath();
+    ctx.moveTo(p1.px, p1.py); ctx.lineTo(p2.px, p2.py);
+    ctx.strokeStyle = color; ctx.lineWidth = 1; ctx.stroke();
+    ctx.fillStyle = color; ctx.font = '10px monospace'; ctx.textAlign = 'center';
+    ctx.fillText(label, p2.px, p2.py - 4);
+  };
+  drawAxis(proj(0, 0, -1), proj(0, 0, 1.12), '|0⟩', 'rgba(125,211,252,0.85)');
+  const p1s = proj(0, 0, -1.16);
+  ctx.fillStyle = 'rgba(148,163,184,0.8)'; ctx.font = '10px monospace'; ctx.textAlign = 'center';
+  ctx.fillText('|1⟩', p1s.px, p1s.py + 4);
+  drawAxis(proj(-1, 0, 0), proj(1.12, 0, 0), 'X', 'rgba(251,113,133,0.7)');
+  drawAxis(proj(0, -1, 0), proj(0, 1.12, 0), 'Y', 'rgba(52,211,153,0.7)');
+
+  // State vector arrow
+  const o = proj(0, 0, 0);
+  const v = proj(bv.cur.x, bv.cur.y, bv.cur.z);
+  const rLen = Math.hypot(bv.cur.x, bv.cur.y, bv.cur.z);
+
+  ctx.beginPath();
+  ctx.moveTo(o.px, o.py);
+  ctx.lineTo(v.px, v.py);
+  ctx.strokeStyle = '#38bdf8';
+  ctx.lineWidth = 2.8;
+  ctx.stroke();
+
+  // Tip glow
+  ctx.beginPath();
+  ctx.arc(v.px, v.py, 5, 0, Math.PI * 2);
+  ctx.fillStyle = '#38bdf8';
+  ctx.fill();
+  ctx.strokeStyle = '#ffffff';
+  ctx.lineWidth = 1.4;
+  ctx.stroke();
+
+  // Update readouts
+  const coordsEl = document.getElementById(`blochCoords_${q}`);
+  const purityEl = document.getElementById(`blochPurity_${q}`);
+  if (coordsEl) coordsEl.textContent = `x: ${bv.cur.x.toFixed(2)} · y: ${bv.cur.y.toFixed(2)} · z: ${bv.cur.z.toFixed(2)}`;
+  if (purityEl) purityEl.textContent = `|r| = ${rLen.toFixed(2)}`;
+}
+
+/* ============================================================================
+   7. MODALS: GATE CONFIG, FOR LOOP, SUBCIRCUITS, QASM/QISKIT EXPORT
+   ============================================================================ */
+function openModal(id) { document.getElementById(id).classList.remove('hidden'); }
+function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
+
+function openGateConfigModal(gateId) {
+  const g = state.gates.find(x => x.id === gateId);
+  if (!g) return;
+  const def = GATE_MAP[g.type];
+  state.editingGateId = gateId;
+
+  document.getElementById('gateModalTitle').textContent = `${def.name} (capa ${g.col + 1})`;
+  const angleWrap = document.getElementById('gateModalAngleWrap');
+  const measWrap = document.getElementById('gateModalMeasWrap');
+  const condWrap = document.getElementById('gateModalCondWrap');
+
+  if (def.param) {
+    angleWrap.classList.remove('hidden');
+    const ang = g.angle ?? def.defaultAngle;
+    document.getElementById('gateModalAngle').value = ang;
+    document.getElementById('gateModalAngleDisplay').textContent = `${formatAngle(ang)} (${ang.toFixed(3)} rad)`;
+  } else {
+    angleWrap.classList.add('hidden');
+  }
+
+  if (g.type === 'M') {
+    measWrap.classList.remove('hidden');
+    condWrap.classList.add('hidden');
+    const sel = document.getElementById('gateModalCbit');
+    sel.innerHTML = Array.from({ length: state.numCbits }, (_, i) =>
+      `<option value="${i}" ${(g.cbit ?? g.qubits[0]) === i ? 'selected' : ''}>Registro clásico c${i}</option>`
+    ).join('');
+  } else {
+    measWrap.classList.add('hidden');
+    condWrap.classList.remove('hidden');
+    const csel = document.getElementById('gateModalCondBit');
+    csel.innerHTML = `<option value="">Sin condición (ejecutar siempre)</option>` +
+      Array.from({ length: state.numCbits }, (_, i) =>
+        `<option value="${i}" ${g.condBit === i ? 'selected' : ''}>Ejecutar solo si c${i} == 1</option>`
+      ).join('');
+  }
+  openModal('gateConfigModal');
+}
+
+function openInspectSubcircuitModal(subId) {
+  const sub = state.subcircuits.find(s => s.id === subId);
+  if (!sub) return;
+  state.inspectingSubId = subId;
+  document.getElementById('inspectSubTitle').textContent = `Subcircuito: ${sub.name}`;
+  document.getElementById('inspectSubSubtitle').textContent = `Requiere ${sub.numQubits} cúbit(s) · ${sub.gates.length} compuerta(s) internas`;
+  document.getElementById('editSubName').value = sub.name;
+  document.getElementById('editSubDesc').value = sub.description || '';
+
+  const qSel = document.getElementById('editSubAddQubit');
+  qSel.innerHTML = Array.from({ length: sub.numQubits }, (_, i) => `<option value="${i}">q${i}</option>`).join('');
+
+  renderSubcircuitInspector(sub);
+  openModal('inspectSubcircuitModal');
+}
+
+function renderSubcircuitInspector(sub) {
+  const maxC = Math.max(3, ...sub.gates.map(g => g.col + 1));
+  let diag = `<div class="inline-block min-w-full">`;
+  for (let q = 0; q < sub.numQubits; q++) {
+    diag += `<div class="flex items-center h-10">
+      <span class="w-8 text-[11px] font-mono-code text-slate-400">q${q}</span>`;
+    for (let c = 0; c < maxC; c++) {
+      const g = sub.gates.find(x => x.col === c && x.qubits.includes(q));
+      let badge = '';
+      if (g) {
+        const lbl = g.type === 'CNOT' ? (q === g.qubits[0] ? '●' : '⊕') : (GATE_MAP[g.type]?.label || g.type);
+        badge = `<span class="relative z-10 px-2 py-0.5 rounded bg-sky-500/20 border border-sky-400/60 text-sky-200 text-[10px] font-mono-code font-bold">${lbl}</span>`;
+      }
+      diag += `<div class="w-12 h-10 relative flex items-center justify-center">
+        <div class="absolute inset-x-0 top-1/2 h-[1.5px] bg-slate-700"></div>
+        ${badge}
+      </div>`;
+    }
+    diag += `</div>`;
+  }
+  diag += `</div>`;
+  document.getElementById('inspectSubDiagram').innerHTML = diag;
+
+  const list = document.getElementById('editSubGatesList');
+  list.innerHTML = '';
+  const sorted = [...sub.gates].sort((a, b) => a.col - b.col);
+  sorted.forEach((g, idx) => {
+    const row = document.createElement('div');
+    row.className = 'flex items-center justify-between gap-2 bg-slate-900/90 px-3 py-1.5 rounded-lg border border-slate-800 text-xs font-mono-code';
+    row.innerHTML = `
+      <span>Capa ${g.col + 1}: <strong class="text-sky-300">${g.type}</strong> en [${g.qubits.map(q=>'q'+q).join(', ')}]</span>
+      <div class="flex items-center gap-1">
+        <button data-sub-move-left="${g.id}" class="px-1.5 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-300" title="Mover capa izquierda">←</button>
+        <button data-sub-move-right="${g.id}" class="px-1.5 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-300" title="Mover capa derecha">→</button>
+        <button data-sub-del-gate="${g.id}" class="px-1.5 py-0.5 rounded bg-rose-500/20 hover:bg-rose-500/30 text-rose-300" title="Eliminar">×</button>
+      </div>
+    `;
+    row.querySelector('[data-sub-move-left]').addEventListener('click', () => {
+      g.col = Math.max(0, g.col - 1);
+      renderSubcircuitInspector(sub);
+    });
+    row.querySelector('[data-sub-move-right]').addEventListener('click', () => {
+      g.col += 1;
+      renderSubcircuitInspector(sub);
+    });
+    row.querySelector('[data-sub-del-gate]').addEventListener('click', () => {
+      sub.gates = sub.gates.filter(x => x.id !== g.id);
+      renderSubcircuitInspector(sub);
+    });
+    list.appendChild(row);
+  });
+}
+
+function generateOpenQASM() {
+  const ops = compileCircuitOps(state.numCols);
+  const lines = [
+    'OPENQASM 2.0;',
+    'include "qelib1.inc";',
+    `qreg q[${state.numQubits}];`,
+    `creg c[${state.numCbits}];`,
+    ''
+  ];
+  const initBits = state.initialState.padEnd(state.numQubits, '0');
+  for (let q = 0; q < state.numQubits; q++) {
+    if (initBits[q] === '1') lines.push(`x q[${q}]; // Estado inicial |1>`);
+  }
+  for (const op of ops) {
+    const cond = (op.condBit !== undefined && op.condBit !== null) ? `if(c[${op.condBit}]==1) ` : '';
+    const a = (op.angle ?? 0).toFixed(4);
+    switch (op.type) {
+      case 'H': case 'X': case 'Y': case 'Z': case 'S': case 'T': case 'SX':
+        lines.push(`${cond}${op.type.toLowerCase()} q[${op.qubits[0]}];`); break;
+      case 'I': lines.push(`${cond}id q[${op.qubits[0]}];`); break;
+      case 'Sdg': lines.push(`${cond}sdg q[${op.qubits[0]}];`); break;
+      case 'Tdg': lines.push(`${cond}tdg q[${op.qubits[0]}];`); break;
+      case 'P': lines.push(`${cond}p(${a}) q[${op.qubits[0]}];`); break;
+      case 'RX': case 'RY': case 'RZ':
+        lines.push(`${cond}${op.type.toLowerCase()}(${a}) q[${op.qubits[0]}];`); break;
+      case 'CNOT': lines.push(`${cond}cx q[${op.qubits[0]}], q[${op.qubits[1]}];`); break;
+      case 'SWAP': lines.push(`${cond}swap q[${op.qubits[0]}], q[${op.qubits[1]}];`); break;
+      case 'CCNOT': lines.push(`${cond}ccx q[${op.qubits[0]}], q[${op.qubits[1]}], q[${op.qubits[2]}];`); break;
+      case 'M': lines.push(`measure q[${op.qubits[0]}] -> c[${op.cbit ?? op.qubits[0]}];`); break;
+    }
+  }
+  return lines.join('\n');
+}
+
+function generateQiskitCode() {
+  const ops = compileCircuitOps(state.numCols);
+  const lines = [
+    'from qiskit import QuantumCircuit',
+    'from qiskit_aer import AerSimulator',
+    '',
+    `qc = QuantumCircuit(${state.numQubits}, ${state.numCbits})`,
+  ];
+  const initBits = state.initialState.padEnd(state.numQubits, '0');
+  for (let q = 0; q < state.numQubits; q++) {
+    if (initBits[q] === '1') lines.push(`qc.x(${q})  # Estado inicial |1>`);
+  }
+  for (const op of ops) {
+    const a = (op.angle ?? 0).toFixed(4);
+    let stmt = '';
+    switch (op.type) {
+      case 'H': case 'X': case 'Y': case 'Z': case 'S': case 'T': case 'SX':
+        stmt = `qc.${op.type.toLowerCase()}(${op.qubits[0]})`; break;
+      case 'I': stmt = `qc.id(${op.qubits[0]})`; break;
+      case 'Sdg': stmt = `qc.sdg(${op.qubits[0]})`; break;
+      case 'Tdg': stmt = `qc.tdg(${op.qubits[0]})`; break;
+      case 'P': stmt = `qc.p(${a}, ${op.qubits[0]})`; break;
+      case 'RX': case 'RY': case 'RZ':
+        stmt = `qc.${op.type.toLowerCase()}(${a}, ${op.qubits[0]})`; break;
+      case 'CNOT': stmt = `qc.cx(${op.qubits[0]}, ${op.qubits[1]})`; break;
+      case 'SWAP': stmt = `qc.swap(${op.qubits[0]}, ${op.qubits[1]})`; break;
+      case 'CCNOT': stmt = `qc.ccx(${op.qubits[0]}, ${op.qubits[1]}, ${op.qubits[2]})`; break;
+      case 'M': stmt = `qc.measure(${op.qubits[0]}, ${op.cbit ?? op.qubits[0]})`; break;
+    }
+    if (op.condBit !== undefined && op.condBit !== null) {
+      lines.push(`with qc.if_test((qc.clbits[${op.condBit}], 1)):`);
+      lines.push(`    ${stmt}`);
+    } else if (stmt) {
+      lines.push(stmt);
+    }
+  }
+  lines.push('');
+  lines.push(`sim = AerSimulator(method="${state.mode === 'statevector' ? 'statevector' : 'automatic'}")`);
+  if (state.mode === 'statevector') {
+    lines.push('qc.save_statevector()');
+    lines.push('result = sim.run(qc).result()');
+    lines.push('print(result.get_statevector())');
+  } else {
+    lines.push('qc.measure_all()');
+    lines.push(`result = sim.run(qc, shots=${state.shots}).result()`);
+    lines.push('print(result.get_counts())');
+  }
+  return lines.join('\n');
+}
+
+/* ============================================================================
+   8. PRELOADED ALGORITHMS
+   ============================================================================ */
+function loadAlgorithm(name) {
+  state.forLoops = [];
+  state.stepLimit = null;
+  state.pendingMulti = null;
+  state.selectedTool = null;
+
+  if (name === 'teleport') {
+    const preset = document.getElementById('teleportPresetState').value;
+    state.numQubits = 3;
+    state.numCbits = 2;
+    state.numCols = 9;
+    state.initialState = '000';
+    state.circuitTitle = 'Teleportación Cuántica (3 cúbits)';
+    const prep = [];
+    if (preset === 'ry60') prep.push({ id: nextUid('t'), type: 'RY', col: 0, qubits: [0], angle: Math.PI / 3 });
+    else if (preset === 'one') prep.push({ id: nextUid('t'), type: 'X', col: 0, qubits: [0] });
+    else if (preset === 'plus') prep.push({ id: nextUid('t'), type: 'H', col: 0, qubits: [0] });
+    else if (preset === 'plusi') {
+      prep.push({ id: nextUid('t'), type: 'H', col: 0, qubits: [0] });
+      prep.push({ id: nextUid('t'), type: 'S', col: 1, qubits: [0] });
+    }
+    const offset = preset === 'plusi' ? 1 : 0;
+    state.gates = [
+      ...prep,
+      // Bell pair on q1, q2
+      { id: nextUid('t'), type: 'H',    col: 1 + offset, qubits: [1] },
+      { id: nextUid('t'), type: 'CNOT', col: 2 + offset, qubits: [1, 2] },
+      // Bell basis on q0, q1
+      { id: nextUid('t'), type: 'CNOT', col: 3 + offset, qubits: [0, 1] },
+      { id: nextUid('t'), type: 'H',    col: 4 + offset, qubits: [0] },
+      // Measurements m0, m1
+      { id: nextUid('t'), type: 'M',    col: 5 + offset, qubits: [0], cbit: 0 },
+      { id: nextUid('t'), type: 'M',    col: 5 + offset, qubits: [1], cbit: 1 },
+      // Dynamic classical control X (if m1=1) and Z (if m0=1) on q2
+      { id: nextUid('t'), type: 'X',    col: 6 + offset, qubits: [2], condBit: 1 },
+      { id: nextUid('t'), type: 'Z',    col: 7 + offset, qubits: [2], condBit: 0 },
+    ];
+    showToast('Teleportación Cuántica cargada. Observa que la esfera de Bloch de q2 reproduce exactamente el estado preparado en q0.', 'sky');
+  } else if (name === 'deutsch') {
+    const oracle = document.getElementById('deutschOracleSelect').value;
+    state.numQubits = 2;
+    state.numCbits = 2;
+    state.numCols = 8;
+    state.initialState = '00';
+    const oracleLabels = {
+      const0: 'Constante f(x)=0', const1: 'Constante f(x)=1',
+      bal_id: 'Balanceada f(x)=x', bal_not: 'Balanceada f(x)=1-x'
+    };
+    state.circuitTitle = `Algoritmo de Deutsch (${oracleLabels[oracle]})`;
+    const oracleGates = [];
+    if (oracle === 'const0') oracleGates.push({ id: nextUid('d'), type: 'I', col: 2, qubits: [1] });
+    else if (oracle === 'const1') oracleGates.push({ id: nextUid('d'), type: 'X', col: 2, qubits: [1] });
+    else if (oracle === 'bal_id') oracleGates.push({ id: nextUid('d'), type: 'CNOT', col: 2, qubits: [0, 1] });
+    else if (oracle === 'bal_not') {
+      oracleGates.push({ id: nextUid('d'), type: 'CNOT', col: 2, qubits: [0, 1] });
+      oracleGates.push({ id: nextUid('d'), type: 'X', col: 3, qubits: [1] });
+    }
+    const finalCol = oracle === 'bal_not' ? 4 : 3;
+    state.gates = [
+      { id: nextUid('d'), type: 'X', col: 0, qubits: [1] },
+      { id: nextUid('d'), type: 'H', col: 1, qubits: [0] },
+      { id: nextUid('d'), type: 'H', col: 1, qubits: [1] },
+      ...oracleGates,
+      { id: nextUid('d'), type: 'H', col: finalCol, qubits: [0] },
+    ];
+    showToast(`Algoritmo de Deutsch (${oracleLabels[oracle]}) cargado. Revisa q0: |0⟩ = constante, |1⟩ = balanceada.`, 'emerald');
+  } else if (name === 'ghz') {
+    state.numQubits = 3; state.numCbits = 3; state.numCols = 8; state.initialState = '000';
+    state.circuitTitle = 'Estado GHZ (3 cúbits)';
+    state.gates = [
+      { id: nextUid('ghz'), type: 'H', col: 0, qubits: [0] },
+      { id: nextUid('ghz'), type: 'CNOT', col: 1, qubits: [0, 1] },
+      { id: nextUid('ghz'), type: 'CNOT', col: 2, qubits: [1, 2] },
+    ];
+  } else if (name === 'fordemo') {
+    state.numQubits = 2; state.numCbits = 2; state.numCols = 8; state.initialState = '00';
+    state.circuitTitle = 'Amplificación por Ciclo for';
+    state.gates = [
+      { id: nextUid('fd'), type: 'RY', col: 1, qubits: [0], angle: Math.PI / 4 },
+      { id: nextUid('fd'), type: 'CNOT', col: 3, qubits: [0, 1] },
+    ];
+    state.forLoops = [{ id: nextUid('loop'), startCol: 1, endCol: 1, iterations: 4 }];
+  }
+
+  syncConfigInputs();
+  switchMainTab('simulator');
+  renderCircuitGrid();
+  scheduleSimulation(15, true);
+}
+
+/* ============================================================================
+   9. LEARN MODULE — MARKDOWN LESSONS
+   ============================================================================ */
+const LESSONS = {
+  intro: `
+    <h2>1. Introducción a la Computación Cuántica</h2>
+    <p>A diferencia de un bit clásico que solo puede tomar los valores <code>0</code> o <code>1</code>, un <strong>cúbit</strong> (bit cuántico) existe en una <em>superposición coherente</em> de ambos estados base:</p>
+    <blockquote>|ψ⟩ = α|0⟩ + β|1⟩, &nbsp;&nbsp;donde α, β ∈ ℂ y |α|² + |β|² = 1</blockquote>
+    <h3>Superposición e Interferencia</h3>
+    <p>Al aplicar operadores unitarios (compuertas cuánticas), las amplitudes complejas <code>α</code> y <code>β</code> interfieren constructiva o destructivamente. Esto permite que algoritmos como <strong>Deutsch</strong> o <strong>Grover</strong> amplifiquen la probabilidad de la respuesta correcta y cancelen las incorrectas.</p>
+    <h3>Entrelazamiento y Esfera de Bloch</h3>
+    <ul>
+      <li><strong>Esfera de Bloch:</strong> Todo estado puro de un solo cúbit puede visualizarse como un punto sobre una esfera unitaria 3D. El polo norte es <code>|0⟩</code>, el polo sur es <code>|1⟩</code>, y el ecuador contiene las superposiciones equiprobables con distintas fases (<code>|+⟩</code>, <code>|-⟩</code>, <code>|+i⟩</code>).</li>
+      <li><strong>Entrelazamiento:</strong> Cuando dos o más cúbits se correlacionan (como en un par de Bell mediante <code>H</code> y <code>CNOT</code>), el estado conjunto no puede factorizarse. Al observar la esfera de Bloch individual de cada cúbit entrelazado, su vector se encoge hacia el centro (<code>|r| → 0</code>) reflejando su estado mezclado reducido.</li>
+      <li><strong>Medición proyectiva:</strong> Al medir en la base computacional, el estado colapsa a <code>|0⟩</code> con probabilidad <code>|α|²</code> o a <code>|1⟩</code> con probabilidad <code>|β|²</code>.</li>
+    </ul>
+  `,
+  gates: `
+    <h2>2. Compuertas Cuánticas Básicas</h2>
+    <p>Todas las compuertas cuánticas (salvo la medición) son matrices unitarias reversibles (<code>U†U = I</code>). A continuación se detallan las <strong>17 compuertas</strong> disponibles en el emulador:</p>
+    <table>
+      <thead><tr><th>Compuerta</th><th>Tipo</th><th>Descripción y efecto físico</th></tr></thead>
+      <tbody>
+        <tr><td><code>H</code> (Hadamard)</td><td>1 cúbit</td><td>Crea superposición uniforme: lleva <code>|0⟩ → (|0⟩+|1⟩)/√2</code> y <code>|1⟩ → (|0⟩-|1⟩)/√2</code>.</td></tr>
+        <tr><td><code>X</code> (NOT)</td><td>1 cúbit</td><td>Invierte el bit cuántico (<code>|0⟩ ↔ |1⟩</code>), rotación de π sobre el eje X.</td></tr>
+        <tr><td><code>Y</code> (Pauli-Y)</td><td>1 cúbit</td><td>Rotación de π alrededor del eje Y; combina inversión de bit y de fase.</td></tr>
+        <tr><td><code>Z</code> (Pauli-Z)</td><td>1 cúbit</td><td>Añade fase de π al estado <code>|1⟩</code> (inversión de fase).</td></tr>
+        <tr><td><code>I</code> (Identidad)</td><td>1 cúbit</td><td>No modifica el estado del cúbit; útil para sincronizar capas o probar ruido.</td></tr>
+        <tr><td><code>SX</code> (√X)</td><td>1 cúbit</td><td>Raíz cuadrada de NOT; media rotación (π/2) sobre el eje X.</td></tr>
+        <tr><td><code>S</code> / <code>S†</code></td><td>1 cúbit</td><td>Añade una fase de <code>+π/2</code> (raíz de Z) o <code>-π/2</code> (inversa) a <code>|1⟩</code>.</td></tr>
+        <tr><td><code>T</code> / <code>T†</code></td><td>1 cúbit</td><td>Añade una fase de <code>+π/4</code> o <code>-π/4</code> (inversa) a <code>|1⟩</code>.</td></tr>
+        <tr><td><code>P(φ)</code></td><td>1 cúbit</td><td>Desfasador arbitrario: aplica <code>e^(iφ)</code> al estado <code>|1⟩</code>.</td></tr>
+        <tr><td><code>RX(θ)</code>, <code>RY(θ)</code>, <code>RZ(θ)</code></td><td>1 cúbit</td><td>Rotaciones continuas de ángulo <code>θ</code> alrededor de los ejes X, Y y Z de la esfera de Bloch.</td></tr>
+        <tr><td><code>CNOT</code></td><td>2 cúbits</td><td>Aplica NOT al objetivo solo si el cúbit de control está en <code>|1⟩</code>. Genera entrelazamiento.</td></tr>
+        <tr><td><code>SWAP</code></td><td>2 cúbits</td><td>Intercambia completamente los estados cuánticos de dos cúbits.</td></tr>
+        <tr><td><code>CCNOT</code> (Toffoli)</td><td>3 cúbits</td><td>Aplica NOT al objetivo solo si ambos cúbits de control están en <code>|1⟩</code>.</td></tr>
+      </tbody>
+    </table>
+  `,
+  guide: `
+    <h2>3. Guía de Uso del Simulador QuLab</h2>
+    <p>QuLab opera con <strong>ejecución automática reactiva</strong>: cada cambio en el circuito, los parámetros o los experimentos ópticos actualiza instantáneamente los resultados sin necesidad de pulsar un botón manual (aunque puedes pausarla en la barra superior si construyes circuitos grandes).</p>
+    <h3>Construcción de circuitos</h3>
+    <ul>
+      <li><strong>Arrastrar y soltar o clic:</strong> Arrastra cualquier compuerta desde la paleta izquierda hacia la cuadrícula, o haz clic en ella y luego en la celda destino.</li>
+      <li><strong>Compuertas multi-cúbit:</strong> Para <code>CNOT</code> y <code>SWAP</code> haz clic primero en el control (o primer cúbit) y luego en el objetivo dentro de la misma columna. Para <code>Toffoli (CCNOT)</code> realiza 3 clics (control 1, control 2, objetivo).</li>
+      <li><strong>Editar parámetros y control clásico:</strong> Haz clic sobre cualquier compuerta colocada para ajustar ángulos (<code>RX, RY, RZ, P</code>), cambiar el registro clásico de una medición <code>M</code> o activar control condicional <code>if c_k == 1</code>.</li>
+      <li><strong>Ciclos <code>for</code> y Subcircuitos:</strong> Usa el botón <code>Ciclo for</code> para repetir rangos de capas sin saturar el lienzo, y <code>Guardar subcircuito</code> para encapsular rutinas reutilizables que podrás inspeccionar, editar y arrastrar al circuito.</li>
+      <li><strong>Inspección paso a paso y QASM:</strong> Desliza la barra inferior <em>Paso a paso</em> para ver la evolución intermedia capa por capa, o pulsa <code>QASM / Qiskit</code> para exportar tu circuito a código ejecutable.</li>
+    </ul>
+  `
+};
+
+function renderLesson(key) {
+  state.activeLesson = key;
+  document.getElementById('lessonMarkdownRender').innerHTML = LESSONS[key] || LESSONS.intro;
+  document.querySelectorAll('.lesson-nav-btn').forEach(btn => {
+    const active = btn.dataset.lesson === key;
+    btn.className = `lesson-nav-btn w-full text-left px-3 py-2.5 rounded-xl text-xs font-semibold transition ${
+      active ? 'bg-sky-500/20 text-sky-200 border border-sky-500/30' : 'text-slate-300 hover:bg-slate-800/80 border border-transparent'
+    }`;
+  });
+}
+
+/* ============================================================================
+   10. LEARN MODULE — MACH-ZEHNDER INTERFEROMETER SIMULATOR
+   ============================================================================ */
+let mzChartInstance = null;
+
+function computeMZProbs() {
+  const { phi, bs2, blockUpper, blockLower } = state.mz;
+  if (blockUpper && blockLower) return { p0: 0, p1: 0, pAbs: 1 };
+  if (blockUpper || blockLower) {
+    // One arm blocked -> 50% absorbed; remaining 50% either hits BS2 (25%/25%) or goes straight
+    if (bs2) return { p0: 0.25, p1: 0.25, pAbs: 0.5 };
+    return blockUpper ? { p0: 0, p1: 0.5, pAbs: 0.5 } : { p0: 0.5, p1: 0, pAbs: 0.5 };
+  }
+  if (!bs2) return { p0: 0.5, p1: 0.5, pAbs: 0 };
+  // Full interferometer: H * P(phi) * H |0>
+  const p0 = Math.cos(phi / 2) ** 2;
+  const p1 = Math.sin(phi / 2) ** 2;
+  return { p0, p1, pAbs: 0 };
+}
+
+function updateMZStatsUI() {
+  const { p0, p1, pAbs } = computeMZProbs();
+  const { d0, d1, abs } = state.mz.counts;
+  const tot = d0 + d1 + abs;
+
+  document.getElementById('mzPhaseValue').textContent = `${state.mz.phi.toFixed(2)} rad (${Math.round(state.mz.phi * 180 / Math.PI)}°)`;
+  document.getElementById('mzTheoD0').textContent = `${(p0 * 100).toFixed(1)}%`;
+  document.getElementById('mzTheoD1').textContent = `${(p1 * 100).toFixed(1)}%`;
+  document.getElementById('mzCountD0').textContent = `Conteo: ${d0} (${tot ? (d0 * 100 / tot).toFixed(1) : '0.0'}%)`;
+  document.getElementById('mzCountD1').textContent = `Conteo: ${d1} (${tot ? (d1 * 100 / tot).toFixed(1) : '0.0'}%)`;
+
+  const absBox = document.getElementById('mzBlockedInfo');
+  if (pAbs > 0 || abs > 0) {
+    absBox.classList.remove('hidden');
+    document.getElementById('mzTheoAbs').textContent = `${(pAbs * 100).toFixed(0)}%`;
+    document.getElementById('mzCountAbs').textContent = abs;
+  } else {
+    absBox.classList.add('hidden');
+  }
+
+  const note = document.getElementById('mzPhysicsNote');
+  if (state.mz.blockUpper || state.mz.blockLower) {
+    note.innerHTML = 'Al <strong>bloquear un brazo</strong> se obtiene información de «qué camino» tomó el fotón: la interferencia desaparece y ambos detectores reciben la misma probabilidad (25% cada uno con BS₂ activo).';
+  } else if (!state.mz.bs2) {
+    note.innerHTML = 'Al <strong>retirar BS₂</strong> los caminos no se recombinan; el desfasador φ deja de afectar las probabilidades y cada detector recibe 50% (comportamiento corpuscular).';
+  } else {
+    note.innerHTML = 'Con BS₂ activo y sin obstáculos, las amplitudes interfieren: <span class="font-mono-code text-sky-300">P(D₀) = cos²(φ/2)</span> y <span class="font-mono-code text-fuchsia-300">P(D₁) = sin²(φ/2)</span>.';
+  }
+
+  // Update Chart
+  const ctx = document.getElementById('mzChart').getContext('2d');
+  const emp0 = tot ? Number((d0 * 100 / tot).toFixed(1)) : 0;
+  const emp1 = tot ? Number((d1 * 100 / tot).toFixed(1)) : 0;
+  if (!mzChartInstance) {
+    mzChartInstance = new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: ['Detector D₀', 'Detector D₁'],
+        datasets: [
+          { label: 'Teórica (%)', data: [p0 * 100, p1 * 100], backgroundColor: 'rgba(56,189,248,0.55)', borderColor: '#38bdf8', borderWidth: 1, borderRadius: 5 },
+          { label: 'Empírica (%)', data: [emp0, emp1], backgroundColor: 'rgba(217,70,239,0.65)', borderColor: '#e879f9', borderWidth: 1, borderRadius: 5 }
+        ]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false, animation: { duration: 150 },
+        plugins: { legend: { labels: { color: '#cbd5e1', font: { size: 11 } } } },
+        scales: {
+          y: { beginAtZero: true, max: 100, grid: { color: 'rgba(51,65,85,0.4)' }, ticks: { color: '#94a3b8', callback: v => v + '%' } },
+          x: { grid: { display: false }, ticks: { color: '#e2e8f0' } }
+        }
+      }
+    });
+  } else {
+    mzChartInstance.data.datasets[0].data = [Number((p0 * 100).toFixed(1)), Number((p1 * 100).toFixed(1))];
+    mzChartInstance.data.datasets[1].data = [emp0, emp1];
+    mzChartInstance.update();
+  }
+}
+
+function fireMZPhotons(count) {
+  const { p0, p1 } = computeMZProbs();
+  for (let i = 0; i < count; i++) {
+    const r = Math.random();
+    let outcome = 'abs';
+    if (r < p0) outcome = 'd0';
+    else if (r < p0 + p1) outcome = 'd1';
+    if (count === 1) {
+      state.mz.photons.push({ t: 0, outcome });
+    } else {
+      state.mz.counts[outcome]++;
+    }
+  }
+  if (count > 1) {
+    state.mz.photons.push({ t: 0, outcome: Math.random() < (p0 / (p0 + p1 || 1)) ? 'd0' : 'd1', burst: true });
+    updateMZStatsUI();
+  }
+}
+
+function drawMZBench() {
+  const canvas = document.getElementById('mzCanvas');
+  if (!canvas) return;
+  const dpr = window.devicePixelRatio || 1;
+  const rect = canvas.getBoundingClientRect();
+  if (rect.width > 0 && (canvas.width !== Math.round(rect.width * dpr) || canvas.height !== Math.round(rect.height * dpr))) {
+    canvas.width = Math.round(rect.width * dpr);
+    canvas.height = Math.round(rect.height * dpr);
+  }
+  const ctx = canvas.getContext('2d');
+  ctx.save();
+  ctx.scale(dpr, dpr);
+  const W = rect.width || 640, H = rect.height || 340;
+  ctx.clearRect(0, 0, W, H);
+
+  // Key optical coordinates
+  const sx = W * 0.10, sy = H * 0.72;
+  const bs1x = W * 0.28, bs1y = H * 0.72;
+  const m1x = W * 0.28, m1y = H * 0.22; // Upper mirror (Arm |0>)
+  const m2x = W * 0.68, m2y = H * 0.72; // Lower mirror (Arm |1>)
+  const bs2x = W * 0.68, bs2y = H * 0.22;
+  const d0x = W * 0.88, d0y = H * 0.22;
+  const d1x = W * 0.68, d1y = H * 0.07;
+
+  const { p0, p1 } = computeMZProbs();
+  const drawBeam = (x1, y1, x2, y2, alpha, color = '#38bdf8') => {
+    ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2);
+    ctx.strokeStyle = color; ctx.globalAlpha = Math.max(0.08, alpha);
+    ctx.lineWidth = 3; ctx.stroke(); ctx.globalAlpha = 1;
+  };
+
+  // Input beam
+  drawBeam(sx, sy, bs1x, bs1y, 0.85, '#38bdf8');
+  // Upper arm |0>: BS1 -> M1 -> BS2
+  drawBeam(bs1x, bs1y, m1x, m1y, 0.55, '#38bdf8');
+  drawBeam(m1x, m1y, state.mz.blockUpper ? (m1x + bs2x) / 2 : bs2x, m1y, 0.55, '#38bdf8');
+  // Lower arm |1>: BS1 -> M2 -> BS2
+  drawBeam(bs1x, bs1y, state.mz.blockLower ? (bs1x + m2x) / 2 : m2x, bs1y, 0.55, '#818cf8');
+  if (!state.mz.blockLower) drawBeam(m2x, m2y, bs2x, bs2y, 0.55, '#818cf8');
+
+  // Output beams
+  drawBeam(bs2x, bs2y, d0x, d0y, p0 * 0.95, '#38bdf8');
+  drawBeam(bs2x, bs2y, d1x, d1y, p1 * 0.95, '#e879f9');
+
+  // Optical components
+  // Source
+  ctx.fillStyle = '#0f172a'; ctx.strokeStyle = '#38bdf8'; ctx.lineWidth = 2;
+  ctx.fillRect(sx - 28, sy - 16, 42, 32); ctx.strokeRect(sx - 28, sy - 16, 42, 32);
+  ctx.fillStyle = '#e0f2fe'; ctx.font = 'bold 11px monospace'; ctx.textAlign = 'center';
+  ctx.fillText('|0⟩', sx - 7, sy + 4);
+  ctx.fillStyle = '#94a3b8'; ctx.font = '10px sans-serif';
+  ctx.fillText('Fuente', sx - 7, sy + 30);
+
+  // Beam splitters (45° glass plate)
+  const drawBS = (x, y, label, active = true) => {
+    ctx.save(); ctx.translate(x, y); ctx.rotate(-Math.PI / 4);
+    ctx.fillStyle = active ? 'rgba(56,189,248,0.28)' : 'rgba(71,85,105,0.15)';
+    ctx.strokeStyle = active ? '#7dd3fc' : '#475569';
+    ctx.setLineDash(active ? [] : [4, 3]);
+    ctx.lineWidth = 2;
+    ctx.fillRect(-20, -4, 40, 8); ctx.strokeRect(-20, -4, 40, 8);
+    ctx.restore();
+    ctx.fillStyle = active ? '#7dd3fc' : '#64748b'; ctx.font = 'bold 11px monospace'; ctx.textAlign = 'center';
+    ctx.fillText(label, x + 22, y + 24);
+  };
+  drawBS(bs1x, bs1y, 'BS₁ (H)', true);
+  drawBS(bs2x, bs2y, state.mz.bs2 ? 'BS₂ (H)' : 'BS₂ (off)', state.mz.bs2);
+
+  // Mirrors
+  const drawMirror = (x, y, label) => {
+    ctx.save(); ctx.translate(x, y); ctx.rotate(-Math.PI / 4);
+    ctx.fillStyle = '#94a3b8'; ctx.fillRect(-20, -3, 40, 6);
+    ctx.restore();
+    ctx.fillStyle = '#cbd5e1'; ctx.font = '10px monospace'; ctx.textAlign = 'center';
+    ctx.fillText(label, x - 20, y - 16);
+  };
+  drawMirror(m1x, m1y, 'M₁');
+  drawMirror(m2x, m2y, 'M₂');
+
+  // Phase shifter on lower arm |1>
+  const px = (bs1x + m2x) / 2, py = bs1y;
+  ctx.fillStyle = 'rgba(245,158,11,0.22)'; ctx.strokeStyle = '#fbbf24'; ctx.lineWidth = 2;
+  ctx.fillRect(px - 18, py - 16, 36, 32); ctx.strokeRect(px - 18, py - 16, 36, 32);
+  ctx.fillStyle = '#fde68a'; ctx.font = 'bold 11px monospace'; ctx.textAlign = 'center';
+  ctx.fillText('φ', px, py + 4);
+  ctx.fillStyle = '#94a3b8'; ctx.font = '10px monospace';
+  ctx.fillText(`P(${state.mz.phi.toFixed(2)})`, px, py + 29);
+
+  // Blockers
+  if (state.mz.blockUpper) {
+    const bx = (m1x + bs2x) / 2;
+    ctx.fillStyle = '#e11d48'; ctx.fillRect(bx - 5, m1y - 18, 10, 36);
+    ctx.fillStyle = '#fda4af'; ctx.font = 'bold 10px sans-serif'; ctx.fillText('Bloqueo', bx, m1y - 24);
+  }
+  if (state.mz.blockLower) {
+    const bx = (bs1x + m2x) / 2 + 34;
+    ctx.fillStyle = '#e11d48'; ctx.fillRect(bx - 5, m2y - 18, 10, 36);
+    ctx.fillStyle = '#fda4af'; ctx.font = 'bold 10px sans-serif'; ctx.fillText('Bloqueo', bx, m2y - 24);
+  }
+
+  // Detectors
+  const drawDet = (x, y, label, pct, color) => {
+    ctx.beginPath(); ctx.arc(x, y, 16, 0, Math.PI * 2);
+    ctx.fillStyle = '#0f172a'; ctx.fill();
+    ctx.strokeStyle = color; ctx.lineWidth = 2.5; ctx.stroke();
+    ctx.fillStyle = color; ctx.font = 'bold 11px monospace'; ctx.textAlign = 'center';
+    ctx.fillText(label, x, y + 4);
+    ctx.fillStyle = '#e2e8f0'; ctx.font = '10px monospace';
+    ctx.fillText(`${(pct * 100).toFixed(0)}%`, x + (label === 'D₀' ? 0 : 32), y + (label === 'D₀' ? 28 : 4));
+  };
+  drawDet(d0x, d0y, 'D₀', p0, '#38bdf8');
+  drawDet(d1x, d1y, 'D₁', p1, '#e879f9');
+
+  // Arm labels
+  ctx.fillStyle = '#64748b'; ctx.font = '10px monospace'; ctx.textAlign = 'center';
+  ctx.fillText('Brazo A |0⟩', (m1x + bs2x) / 2, m1y + 18);
+  ctx.fillText('Brazo B |1⟩', (bs1x + m2x) / 2, bs1y - 22);
+
+  // Animate photons
+  const lerp = (a, b, t) => a + (b - a) * t;
+  const nextPhotons = [];
+  for (const ph of state.mz.photons) {
+    ph.t += 0.025;
+    if (ph.t >= 1) {
+      if (!ph.burst) {
+        state.mz.counts[ph.outcome]++;
+        updateMZStatsUI();
+      }
+      continue;
+    }
+    nextPhotons.push(ph);
+    const drawDot = (x, y, col = '#fde047') => {
+      ctx.beginPath(); ctx.arc(x, y, 5.5, 0, Math.PI * 2);
+      ctx.fillStyle = col; ctx.shadowColor = col; ctx.shadowBlur = 10; ctx.fill(); ctx.shadowBlur = 0;
+    };
+    if (ph.t < 0.22) {
+      const u = ph.t / 0.22;
+      drawDot(lerp(sx, bs1x, u), sy);
+    } else if (ph.t < 0.75) {
+      const u = (ph.t - 0.22) / 0.53;
+      if (u < 0.5) {
+        const v = u * 2;
+        drawDot(bs1x, lerp(bs1y, m1y, v), '#38bdf8');
+        drawDot(lerp(bs1x, m2x, v), bs1y, '#818cf8');
+      } else {
+        const v = (u - 0.5) * 2;
+        if (!state.mz.blockUpper) drawDot(lerp(m1x, bs2x, v), m1y, '#38bdf8');
+        if (!state.mz.blockLower) drawDot(m2x, lerp(m2y, bs2y, v), '#818cf8');
+      }
+    } else if (ph.outcome !== 'abs') {
+      const u = (ph.t - 0.75) / 0.25;
+      if (ph.outcome === 'd0') drawDot(lerp(bs2x, d0x, u), d0y, '#38bdf8');
+      else drawDot(bs2x, lerp(bs2y, d1y, u), '#e879f9');
+    }
+  }
+  state.mz.photons = nextPhotons;
+  ctx.restore();
+}
+
+/* ============================================================================
+   11. LEARN MODULE — ELITZUR-VAIDMAN BOMB TESTER
+   ============================================================================ */
+let evChartInstance = null;
+
+function isEVBombActive() {
+  if (state.ev.mode === 'active') return true;
+  if (state.ev.mode === 'dud') return false;
+  return state.ev.hiddenIsActive;
+}
+
+function fireEVPhotons(count) {
+  const active = isEVBombActive();
+  let lastOutcome = 'd0';
+  for (let i = 0; i < count; i++) {
+    let outcome = 'd0';
+    if (active) {
+      const r = Math.random();
+      if (r < 0.50) outcome = 'boom';
+      else if (r < 0.75) outcome = 'd0';
+      else outcome = 'd1';
+    } else {
+      outcome = 'd0';
+    }
+    lastOutcome = outcome;
+    if (count === 1) {
+      state.ev.photons.push({ t: 0, outcome });
+    } else {
+      state.ev.counts[outcome]++;
+    }
+  }
+  if (count > 1) {
+    if (active && state.ev.counts.boom > 0) state.ev.explosionFlash = 0.8;
+    updateEVStatsUI(lastOutcome, true);
+  }
+}
+
+function updateEVStatsUI(lastOutcome = null, isBurst = false) {
+  const { boom, d0, d1 } = state.ev.counts;
+  const tot = boom + d0 + d1;
+  const pct = (v) => tot ? `${(v * 100 / tot).toFixed(1)}%` : '0.0%';
+
+  document.getElementById('evTotalShots').textContent = `Intentos: ${tot}`;
+  document.getElementById('evStatBoomPct').textContent = pct(boom);
+  document.getElementById('evStatBoomCnt').textContent = `${boom} eventos`;
+  document.getElementById('evStatD0Pct').textContent = pct(d0);
+  document.getElementById('evStatD0Cnt').textContent = `${d0} eventos`;
+  document.getElementById('evStatD1Pct').textContent = pct(d1);
+  document.getElementById('evStatD1Cnt').textContent = `${d1} eventos`;
+
+  if (lastOutcome) {
+    const outEl = document.getElementById('evOutcomeText');
+    if (isBurst) {
+      outEl.innerHTML = `Ráfaga completada. Resultados acumulados: <strong class="text-rose-300">${boom} explosiones</strong>, <strong class="text-sky-300">${d0} en D₀</strong>, <strong class="text-emerald-300">${d1} detecciones libres de interacción (D₁)</strong>.`;
+    } else if (lastOutcome === 'boom') {
+      outEl.innerHTML = `<strong class="text-rose-400">¡DETONACIÓN!</strong> El fotón tomó el brazo |1⟩ y fue absorbido por la bomba activa.`;
+    } else if (lastOutcome === 'd1') {
+      outEl.innerHTML = `<strong class="text-emerald-400">¡DETECCIÓN LIBRE DE INTERACCIÓN EN D₁!</strong> El fotón nunca tocó la bomba, pero se certifica con 100% de certeza que la bomba está ACTIVA.`;
+    } else {
+      outEl.innerHTML = `<strong class="text-sky-300">Detección en D₀ (inconcluso).</strong> Este desenlace puede ocurrir tanto con bomba activa (25%) como con bomba defectuosa (100%).`;
+    }
+  }
+
+  const active = isEVBombActive();
+  const theo = state.ev.mode === 'hidden' && !state.ev.hiddenRevealed
+    ? [0, 0, 0]
+    : (active ? [50, 25, 25] : [0, 100, 0]);
+  const emp = tot ? [boom * 100 / tot, d0 * 100 / tot, d1 * 100 / tot].map(v => Number(v.toFixed(1))) : [0, 0, 0];
+
+  const ctx = document.getElementById('evChart').getContext('2d');
+  if (!evChartInstance) {
+    evChartInstance = new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: ['Explosión', 'D₀ (Inc.)', 'D₁ (Libre)'],
+        datasets: [
+          { label: 'Teórica (%)', data: theo, backgroundColor: 'rgba(148,163,184,0.35)', borderColor: '#94a3b8', borderWidth: 1, borderRadius: 4 },
+          { label: 'Empírica (%)', data: emp, backgroundColor: ['rgba(244,63,94,0.7)', 'rgba(56,189,248,0.7)', 'rgba(16,185,129,0.75)'], borderRadius: 4 }
+        ]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false, animation: { duration: 150 },
+        plugins: { legend: { labels: { color: '#cbd5e1', font: { size: 11 } } } },
+        scales: {
+          y: { beginAtZero: true, max: 100, grid: { color: 'rgba(51,65,85,0.4)' }, ticks: { color: '#94a3b8', callback: v => v + '%' } },
+          x: { grid: { display: false }, ticks: { color: '#e2e8f0', font: { size: 11 } } }
+        }
+      }
+    });
+  } else {
+    evChartInstance.data.datasets[0].data = theo;
+    evChartInstance.data.datasets[1].data = emp;
+    evChartInstance.update();
+  }
+}
+
+function drawEVBench() {
+  const canvas = document.getElementById('evCanvas');
+  if (!canvas) return;
+  const dpr = window.devicePixelRatio || 1;
+  const rect = canvas.getBoundingClientRect();
+  if (rect.width > 0 && (canvas.width !== Math.round(rect.width * dpr) || canvas.height !== Math.round(rect.height * dpr))) {
+    canvas.width = Math.round(rect.width * dpr);
+    canvas.height = Math.round(rect.height * dpr);
+  }
+  const ctx = canvas.getContext('2d');
+  ctx.save();
+  ctx.scale(dpr, dpr);
+  const W = rect.width || 640, H = rect.height || 330;
+  ctx.clearRect(0, 0, W, H);
+
+  const sx = W * 0.10, sy = H * 0.72;
+  const bs1x = W * 0.28, bs1y = H * 0.72;
+  const m1x = W * 0.28, m1y = H * 0.22;
+  const m2x = W * 0.68, m2y = H * 0.72;
+  const bs2x = W * 0.68, bs2y = H * 0.22;
+  const d0x = W * 0.88, d0y = H * 0.22;
+  const d1x = W * 0.68, d1y = H * 0.08;
+  const bombX = (bs1x + m2x) / 2, bombY = bs1y;
+
+  const isHidden = state.ev.mode === 'hidden' && !state.ev.hiddenRevealed;
+  const active = isEVBombActive();
+
+  const drawBeam = (x1, y1, x2, y2, alpha, color = '#38bdf8') => {
+    ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2);
+    ctx.strokeStyle = color; ctx.globalAlpha = alpha; ctx.lineWidth = 2.8; ctx.stroke(); ctx.globalAlpha = 1;
+  };
+
+  drawBeam(sx, sy, bs1x, bs1y, 0.85, '#38bdf8');
+  drawBeam(bs1x, bs1y, m1x, m1y, 0.55, '#38bdf8');
+  drawBeam(m1x, m1y, bs2x, bs2y, 0.55, '#38bdf8');
+  drawBeam(bs1x, bs1y, bombX, bombY, 0.55, '#fbbf24');
+  if (!active || isHidden) {
+    drawBeam(bombX, bombY, m2x, m2y, isHidden ? 0.2 : 0.55, '#fbbf24');
+    drawBeam(m2x, m2y, bs2x, bs2y, isHidden ? 0.2 : 0.55, '#fbbf24');
+  }
+  drawBeam(bs2x, bs2y, d0x, d0y, 0.75, '#38bdf8');
+  drawBeam(bs2x, bs2y, d1x, d1y, (active || isHidden) ? 0.45 : 0.08, '#10b981');
+
+  // Source
+  ctx.fillStyle = '#0f172a'; ctx.strokeStyle = '#38bdf8'; ctx.lineWidth = 2;
+  ctx.fillRect(sx - 26, sy - 15, 40, 30); ctx.strokeRect(sx - 26, sy - 15, 40, 30);
+  ctx.fillStyle = '#e0f2fe'; ctx.font = 'bold 11px monospace'; ctx.textAlign = 'center';
+  ctx.fillText('|0⟩', sx - 6, sy + 4);
+
+  // BS1 & BS2
+  const drawBS = (x, y, label) => {
+    ctx.save(); ctx.translate(x, y); ctx.rotate(-Math.PI / 4);
+    ctx.fillStyle = 'rgba(56,189,248,0.28)'; ctx.strokeStyle = '#7dd3fc'; ctx.lineWidth = 2;
+    ctx.fillRect(-19, -4, 38, 8); ctx.strokeRect(-19, -4, 38, 8);
+    ctx.restore();
+    ctx.fillStyle = '#7dd3fc'; ctx.font = 'bold 10px monospace'; ctx.textAlign = 'center';
+    ctx.fillText(label, x + 22, y + 22);
+  };
+  drawBS(bs1x, bs1y, 'BS₁');
+  drawBS(bs2x, bs2y, 'BS₂');
+
+  // Mirrors
+  const drawMirror = (x, y) => {
+    ctx.save(); ctx.translate(x, y); ctx.rotate(-Math.PI / 4);
+    ctx.fillStyle = '#94a3b8'; ctx.fillRect(-19, -3, 38, 6);
+    ctx.restore();
+  };
+  drawMirror(m1x, m1y); drawMirror(m2x, m2y);
+
+  // Bomb in Arm |1>
+  if (state.ev.explosionFlash > 0) {
+    state.ev.explosionFlash = Math.max(0, state.ev.explosionFlash - 0.03);
+    ctx.beginPath(); ctx.arc(bombX, bombY, 26 + (1 - state.ev.explosionFlash) * 24, 0, Math.PI * 2);
+    ctx.fillStyle = `rgba(244, 63, 94, ${state.ev.explosionFlash * 0.55})`; ctx.fill();
+  }
+  ctx.beginPath(); ctx.arc(bombX, bombY, 18, 0, Math.PI * 2);
+  ctx.fillStyle = isHidden ? '#1e293b' : (active ? 'rgba(244,63,94,0.25)' : 'rgba(100,116,139,0.25)');
+  ctx.fill();
+  ctx.strokeStyle = isHidden ? '#fbbf24' : (active ? '#fb7185' : '#94a3b8');
+  ctx.lineWidth = 2.2; ctx.stroke();
+  ctx.fillStyle = '#f8fafc'; ctx.font = 'bold 13px sans-serif'; ctx.textAlign = 'center';
+  ctx.fillText(isHidden ? '?' : (active ? '💣' : '∅'), bombX, bombY + 5);
+  ctx.fillStyle = isHidden ? '#fde68a' : (active ? '#fda4af' : '#94a3b8');
+  ctx.font = '10px sans-serif';
+  ctx.fillText(isHidden ? 'Bomba oculta' : (active ? 'Bomba ACTIVA' : 'Bomba defectuosa'), bombX, bombY + 32);
+
+  // Detectors
+  const drawDet = (x, y, label, col) => {
+    ctx.beginPath(); ctx.arc(x, y, 16, 0, Math.PI * 2);
+    ctx.fillStyle = '#0f172a'; ctx.fill(); ctx.strokeStyle = col; ctx.lineWidth = 2.4; ctx.stroke();
+    ctx.fillStyle = col; ctx.font = 'bold 11px monospace'; ctx.textAlign = 'center';
+    ctx.fillText(label, x, y + 4);
+  };
+  drawDet(d0x, d0y, 'D₀', '#38bdf8');
+  drawDet(d1x, d1y, 'D₁', '#10b981');
+
+  // Animate photons
+  const lerp = (a, b, t) => a + (b - a) * t;
+  const next = [];
+  for (const ph of state.ev.photons) {
+    ph.t += 0.025;
+    if (ph.t >= 1) {
+      state.ev.counts[ph.outcome]++;
+      if (ph.outcome === 'boom') state.ev.explosionFlash = 1;
+      updateEVStatsUI(ph.outcome, false);
+      continue;
+    }
+    next.push(ph);
+    const drawDot = (x, y, col = '#fde047') => {
+      ctx.beginPath(); ctx.arc(x, y, 5.5, 0, Math.PI * 2);
+      ctx.fillStyle = col; ctx.shadowColor = col; ctx.shadowBlur = 10; ctx.fill(); ctx.shadowBlur = 0;
+    };
+    if (ph.t < 0.22) {
+      drawDot(lerp(sx, bs1x, ph.t / 0.22), sy);
+    } else if (ph.outcome === 'boom') {
+      const u = Math.min(1, (ph.t - 0.22) / 0.35);
+      drawDot(lerp(bs1x, bombX, u), bs1y, '#fb7185');
+      if (ph.t > 0.57) {
+        state.ev.explosionFlash = Math.max(state.ev.explosionFlash, 0.7);
+      }
+    } else if (ph.t < 0.74) {
+      const u = (ph.t - 0.22) / 0.52;
+      if (u < 0.5) {
+        const v = u * 2;
+        drawDot(bs1x, lerp(bs1y, m1y, v), '#38bdf8');
+        if (!active) drawDot(lerp(bs1x, m2x, v), bs1y, '#fbbf24');
+      } else {
+        const v = (u - 0.5) * 2;
+        drawDot(lerp(m1x, bs2x, v), m1y, '#38bdf8');
+        if (!active) drawDot(m2x, lerp(m2y, bs2y, v), '#fbbf24');
+      }
+    } else {
+      const u = (ph.t - 0.74) / 0.26;
+      if (ph.outcome === 'd0') drawDot(lerp(bs2x, d0x, u), d0y, '#38bdf8');
+      else drawDot(bs2x, lerp(bs2y, d1y, u), '#10b981');
+    }
+  }
+  state.ev.photons = next;
+  ctx.restore();
+}
+
+// Single shared animation loop for optical canvases when Learn view is visible
+let opticalRafId = null;
+function startOpticalLoop() {
+  if (opticalRafId) cancelAnimationFrame(opticalRafId);
+  function tick() {
+    if (state.activeTab === 'learn') {
+      if (state.activeLearnTab === 'machzehnder') drawMZBench();
+      else if (state.activeLearnTab === 'elitzur') drawEVBench();
+    }
+    opticalRafId = requestAnimationFrame(tick);
+  }
+  opticalRafId = requestAnimationFrame(tick);
+}
+
+/* ============================================================================
+   12. NAVIGATION & EVENT BINDINGS
+   ============================================================================ */
+function escapeHtml(str) {
+  return String(str).replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
+}
+
+function syncConfigInputs() {
+  document.getElementById('cfgQubits').value = state.numQubits;
+  document.getElementById('cfgCbits').value = state.numCbits;
+  document.getElementById('cfgInitState').value = state.initialState;
+  document.getElementById('cfgMode').value = state.mode;
+  document.getElementById('cfgShots').value = state.shots;
+  document.getElementById('cfgNoise').value = state.noiseModel;
+  document.getElementById('cfgNoiseParam').value = state.noiseParam;
+  document.getElementById('activeCircuitTitle').textContent = state.circuitTitle;
+  document.getElementById('shotsControlWrap').classList.toggle('opacity-50', state.mode !== 'shot');
+  document.getElementById('noiseStrengthWrap').classList.toggle('hidden', state.noiseModel === 'none');
+}
+
+function switchMainTab(tab) {
+  state.activeTab = tab;
+  ['simulator', 'algorithms', 'learn', 'docs'].forEach(t => {
+    document.getElementById(`view-${t}`).classList.toggle('hidden', t !== tab);
+  });
+  document.querySelectorAll('.main-tab-btn').forEach(btn => {
+    const active = btn.dataset.tab === tab;
+    btn.className = `main-tab-btn px-2.5 sm:px-3.5 py-1.5 rounded-lg text-xs sm:text-sm font-medium flex items-center gap-1.5 transition ${
+      active ? 'bg-sky-500/20 text-sky-300 border border-sky-500/30' : 'text-slate-400 hover:text-slate-200 border border-transparent'
+    }`;
+  });
+  if (tab === 'learn') {
+    if (state.activeLearnTab === 'machzehnder') updateMZStatsUI();
+    if (state.activeLearnTab === 'elitzur') updateEVStatsUI();
+  }
+}
+
+function switchLearnTab(ltab) {
+  state.activeLearnTab = ltab;
+  ['theory', 'machzehnder', 'elitzur'].forEach(t => {
+    document.getElementById(`learn-${t}`).classList.toggle('hidden', t !== ltab);
+  });
+  document.querySelectorAll('.learn-tab-btn').forEach(btn => {
+    const active = btn.dataset.learntab === ltab;
+    btn.className = `learn-tab-btn px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold flex items-center gap-2 transition ${
+      active ? 'bg-sky-500/20 text-sky-300 border border-sky-500/35' : 'text-slate-400 hover:text-slate-200 border border-transparent'
+    }`;
+  });
+  if (ltab === 'machzehnder') updateMZStatsUI();
+  if (ltab === 'elitzur') updateEVStatsUI();
+}
+
+function initBindings() {
+  // Main nav
+  document.querySelectorAll('.main-tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => switchMainTab(btn.dataset.tab));
+  });
+  document.querySelectorAll('.learn-tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => switchLearnTab(btn.dataset.learntab));
+  });
+  document.querySelectorAll('.lesson-nav-btn').forEach(btn => {
+    btn.addEventListener('click', () => renderLesson(btn.dataset.lesson));
+  });
+
+  // Reactive execution pause / resume
+  document.getElementById('toggleAutoExecBtn').addEventListener('click', () => {
+    state.autoExec = !state.autoExec;
+    const badge = document.getElementById('autoExecBadge');
+    const dot = document.getElementById('autoExecDot');
+    const lbl = document.getElementById('autoExecLabel');
+    const btnTxt = document.getElementById('autoExecBtnText');
+    const manBtn = document.getElementById('manualRunBtn');
+    if (state.autoExec) {
+      badge.className = 'hidden sm:flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-300 border border-emerald-500/30';
+      dot.className = 'w-2 h-2 rounded-full bg-emerald-400 animate-pulse';
+      lbl.textContent = 'Auto-ejecución';
+      btnTxt.textContent = 'Pausar';
+      manBtn.classList.add('hidden');
+      scheduleSimulation(15, true);
+    } else {
+      badge.className = 'hidden sm:flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full bg-amber-500/10 text-amber-300 border border-amber-500/30';
+      dot.className = 'w-2 h-2 rounded-full bg-amber-400';
+      lbl.textContent = 'Pausada';
+      btnTxt.textContent = 'Reanudar';
+      manBtn.classList.remove('hidden');
+    }
+  });
+  document.getElementById('manualRunBtn').addEventListener('click', () => scheduleSimulation(10, true));
+
+  // Config bar bindings
+  document.getElementById('cfgQubits').addEventListener('change', (e) => {
+    state.numQubits = parseInt(e.target.value, 10);
+    state.initialState = state.initialState.padEnd(state.numQubits, '0').slice(0, state.numQubits);
+    document.getElementById('cfgInitState').value = state.initialState;
+    state.gates = state.gates.filter(g => g.qubits.every(q => q < state.numQubits));
+    state.pendingMulti = null;
+    renderCircuitGrid();
+    scheduleSimulation(20);
+  });
+  document.getElementById('cfgCbits').addEventListener('change', (e) => {
+    state.numCbits = parseInt(e.target.value, 10);
+    renderCircuitGrid();
+    scheduleSimulation(20);
+  });
+  document.getElementById('cfgInitState').addEventListener('input', (e) => {
+    const clean = e.target.value.replace(/[^01]/g, '').slice(0, state.numQubits);
+    e.target.value = clean;
+    state.initialState = clean.padEnd(state.numQubits, '0');
+    renderCircuitGrid();
+    scheduleSimulation(50);
+  });
+  document.getElementById('cfgMode').addEventListener('change', (e) => {
+    state.mode = e.target.value;
+    document.getElementById('shotsControlWrap').classList.toggle('opacity-50', state.mode !== 'shot');
+    scheduleSimulation(20);
+  });
+  document.getElementById('cfgShots').addEventListener('input', (e) => {
+    state.shots = Math.max(10, Math.min(20000, parseInt(e.target.value, 10) || 1024));
+    scheduleSimulation(80);
+  });
+  document.getElementById('cfgNoise').addEventListener('change', (e) => {
+    state.noiseModel = e.target.value;
+    document.getElementById('noiseStrengthWrap').classList.toggle('hidden', state.noiseModel === 'none');
+    document.getElementById('noiseParamLabel').textContent = (state.noiseModel === 'thermal' ? 'γ=' : 'p=') + state.noiseParam.toFixed(2);
+    scheduleSimulation(20);
+  });
+  document.getElementById('cfgNoiseParam').addEventListener('input', (e) => {
+    state.noiseParam = parseFloat(e.target.value);
+    document.getElementById('noiseParamLabel').textContent = (state.noiseModel === 'thermal' ? 'γ=' : 'p=') + state.noiseParam.toFixed(2);
+    scheduleSimulation(60);
+  });
+
+  // Circuit actions
+  document.getElementById('addColBtn').addEventListener('click', () => {
+    if (state.numCols < 24) { state.numCols++; renderCircuitGrid(); }
+  });
+  document.getElementById('remColBtn').addEventListener('click', () => {
+    if (state.numCols > 4) {
+      state.numCols--;
+      state.gates = state.gates.filter(g => g.col < state.numCols);
+      state.forLoops = state.forLoops.filter(l => l.startCol < state.numCols).map(l => ({ ...l, endCol: Math.min(l.endCol, state.numCols - 1) }));
+      if (state.stepLimit !== null && state.stepLimit > state.numCols) state.stepLimit = null;
+      renderCircuitGrid();
+      scheduleSimulation(20);
+    }
+  });
+  document.getElementById('clearCircuitBtn').addEventListener('click', () => {
+    state.gates = [];
+    state.forLoops = [];
+    state.stepLimit = null;
+    state.pendingMulti = null;
+    state.circuitTitle = 'Circuito personalizado';
+    document.getElementById('activeCircuitTitle').textContent = state.circuitTitle;
+    renderCircuitGrid();
+    scheduleSimulation(15);
+  });
+  document.getElementById('cancelMultiSelectBtn').addEventListener('click', () => {
+    state.pendingMulti = null;
+    state.selectedTool = null;
+    renderPalette();
+    renderSubcircuitLibrary();
+    updateMultiSelectBanner();
+    renderCircuitGrid();
+  });
+
+  // Step-by-step scrubber (Mejora Libre)
+  document.getElementById('stepScrubber').addEventListener('input', (e) => {
+    const val = parseInt(e.target.value, 10);
+    state.stepLimit = val >= state.numCols ? null : val;
+    renderCircuitGrid();
+    scheduleSimulation(30);
+  });
+  document.getElementById('stepResetBtn').addEventListener('click', () => {
+    if (state.stepAnimTimer) { clearInterval(state.stepAnimTimer); state.stepAnimTimer = null; }
+    state.stepLimit = null;
+    renderCircuitGrid();
+    scheduleSimulation(15);
+  });
+  document.getElementById('stepPlayBtn').addEventListener('click', () => {
+    if (state.stepAnimTimer) { clearInterval(state.stepAnimTimer); state.stepAnimTimer = null; }
+    const maxUsed = Math.max(1, ...state.gates.map(g => g.col + 1));
+    let cur = 0;
+    state.stepLimit = 0;
+    renderCircuitGrid();
+    scheduleSimulation(10, true);
+    state.stepAnimTimer = setInterval(() => {
+      cur++;
+      if (cur > maxUsed) {
+        clearInterval(state.stepAnimTimer);
+        state.stepAnimTimer = null;
+        state.stepLimit = null;
+        renderCircuitGrid();
+        scheduleSimulation(10, true);
+        return;
+      }
+      state.stepLimit = cur;
+      renderCircuitGrid();
+      scheduleSimulation(10, true);
+    }, 650);
+  });
+
+  document.getElementById('hideZeroAmpChk').addEventListener('change', () => {
+    if (state.lastResult) renderSimulationResults(state.lastResult);
+  });
+  document.getElementById('replayBlochAnimBtn').addEventListener('click', () => {
+    if (state.lastResult) updateBlochSpheres(state.lastResult.bloch, true);
+  });
+
+  // Modal close buttons
+  document.querySelectorAll('[data-close-modal]').forEach(btn => {
+    btn.addEventListener('click', () => closeModal(btn.dataset.closeModal));
+  });
+
+  // Gate config modal
+  document.getElementById('gateModalAngle').addEventListener('input', (e) => {
+    const v = parseFloat(e.target.value);
+    document.getElementById('gateModalAngleDisplay').textContent = `${formatAngle(v)} (${v.toFixed(3)} rad)`;
+  });
+  document.querySelectorAll('.angle-preset').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const v = parseFloat(btn.dataset.angle);
+      document.getElementById('gateModalAngle').value = v;
+      document.getElementById('gateModalAngleDisplay').textContent = `${formatAngle(v)} (${v.toFixed(3)} rad)`;
+    });
+  });
+  document.getElementById('gateModalSaveBtn').addEventListener('click', () => {
+    const g = state.gates.find(x => x.id === state.editingGateId);
+    if (!g) return;
+    const def = GATE_MAP[g.type];
+    if (def?.param) g.angle = parseFloat(document.getElementById('gateModalAngle').value);
+    if (g.type === 'M') g.cbit = parseInt(document.getElementById('gateModalCbit').value, 10);
+    else {
+      const condVal = document.getElementById('gateModalCondBit').value;
+      g.condBit = condVal === '' ? null : parseInt(condVal, 10);
+    }
+    closeModal('gateConfigModal');
+    renderCircuitGrid();
+    scheduleSimulation(15);
+  });
+  document.getElementById('gateModalDeleteBtn').addEventListener('click', () => {
+    state.gates = state.gates.filter(x => x.id !== state.editingGateId);
+    closeModal('gateConfigModal');
+    renderCircuitGrid();
+    scheduleSimulation(15);
+  });
+
+  // For-loop modal
+  document.getElementById('openForLoopModalBtn').addEventListener('click', () => {
+    document.getElementById('forStartCol').max = state.numCols;
+    document.getElementById('forEndCol').max = state.numCols;
+    openModal('forLoopModal');
+  });
+  document.getElementById('saveForLoopBtn').addEventListener('click', () => {
+    const s = Math.max(0, Math.min(state.numCols - 1, parseInt(document.getElementById('forStartCol').value, 10) - 1));
+    const e = Math.max(s, Math.min(state.numCols - 1, parseInt(document.getElementById('forEndCol').value, 10) - 1));
+    const it = Math.max(2, Math.min(16, parseInt(document.getElementById('forIterations').value, 10) || 2));
+    // Remove overlapping loops
+    state.forLoops = state.forLoops.filter(l => l.endCol < s || l.startCol > e);
+    state.forLoops.push({ id: nextUid('loop'), startCol: s, endCol: e, iterations: it });
+    closeModal('forLoopModal');
+    renderCircuitGrid();
+    scheduleSimulation(15);
+    showToast(`Ciclo for (×${it}) añadido en capas ${s + 1}–${e + 1}.`, 'sky');
+  });
+
+  // Save Subcircuit modal
+  const updateSaveSubPreview = () => {
+    const fromC = Math.max(0, (parseInt(document.getElementById('subFromCol').value, 10) || 1) - 1);
+    const toC = Math.max(fromC, (parseInt(document.getElementById('subToCol').value, 10) || state.numCols) - 1);
+    const slice = state.gates.filter(g => g.col >= fromC && g.col <= toC);
+    const allQ = slice.flatMap(g => g.qubits);
+    const qSpan = allQ.length ? (Math.max(...allQ) - Math.min(...allQ) + 1) : 0;
+    document.getElementById('subSavePreviewInfo').textContent = slice.length
+      ? `Se encapsularán ${slice.length} compuerta(s) que abarcan ${qSpan} cúbit(s).`
+      : 'No hay compuertas en el rango de capas seleccionado.';
+  };
+  document.getElementById('openSaveSubModalBtn').addEventListener('click', () => {
+    document.getElementById('subNameInput').value = '';
+    document.getElementById('subDescInput').value = '';
+    document.getElementById('subFromCol').value = 1;
+    document.getElementById('subToCol').value = state.numCols;
+    updateSaveSubPreview();
+    openModal('saveSubcircuitModal');
+  });
+  document.getElementById('subFromCol').addEventListener('input', updateSaveSubPreview);
+  document.getElementById('subToCol').addEventListener('input', updateSaveSubPreview);
+  document.getElementById('confirmSaveSubBtn').addEventListener('click', () => {
+    const name = document.getElementById('subNameInput').value.trim();
+    const desc = document.getElementById('subDescInput').value.trim();
+    const fromC = Math.max(0, (parseInt(document.getElementById('subFromCol').value, 10) || 1) - 1);
+    const toC = Math.max(fromC, (parseInt(document.getElementById('subToCol').value, 10) || state.numCols) - 1);
+    const slice = state.gates.filter(g => g.col >= fromC && g.col <= toC);
+    if (!name) { showToast('Escribe un nombre para el subcircuito.', 'amber'); return; }
+    if (slice.length === 0) { showToast('El rango seleccionado no contiene compuertas.', 'amber'); return; }
+    const subMap = Object.fromEntries(state.subcircuits.map(s => [s.id, s]));
+    const qIndices = slice.flatMap(g => {
+      if (g.type === 'SUB') {
+        const span = subMap[g.subId]?.numQubits || 1;
+        return Array.from({ length: span }, (_, i) => g.qubits[0] + i);
+      }
+      return g.qubits;
+    });
+    const minQ = Math.min(...qIndices), maxQ = Math.max(...qIndices);
+    const minC = Math.min(...slice.map(g => g.col));
+    const normalizedGates = slice.map(g => ({
+      ...JSON.parse(JSON.stringify(g)),
+      id: nextUid('sg'),
+      col: g.col - minC,
+      qubits: g.qubits.map(q => q - minQ),
+    }));
+    state.subcircuits.push({
+      id: nextUid('sub'),
+      name,
+      description: desc || `Subcircuito de ${maxQ - minQ + 1} cúbits`,
+      numQubits: maxQ - minQ + 1,
+      gates: normalizedGates,
+    });
+    persistSubcircuits();
+    renderSubcircuitLibrary();
+    closeModal('saveSubcircuitModal');
+    showToast(`Subcircuito "${name}" guardado en la biblioteca.`, 'emerald');
+  });
+
+  // Inspect / Edit Subcircuit modal
+  document.getElementById('editSubAddGateBtn').addEventListener('click', () => {
+    const sub = state.subcircuits.find(s => s.id === state.inspectingSubId);
+    if (!sub) return;
+    const type = document.getElementById('editSubAddGateType').value;
+    const q = parseInt(document.getElementById('editSubAddQubit').value, 10) || 0;
+    const nextC = sub.gates.length ? Math.max(...sub.gates.map(g => g.col)) + 1 : 0;
+    if ((type === 'CNOT' || type === 'SWAP') && sub.numQubits < 2) {
+      showToast('Este subcircuito solo tiene 1 cúbit.', 'amber'); return;
+    }
+    const qubits = (type === 'CNOT' || type === 'SWAP') ? [q, (q + 1) % sub.numQubits] : [q];
+    const ng = { id: nextUid('sg'), type, col: nextC, qubits };
+    if (GATE_MAP[type]?.param) ng.angle = Math.PI / 2;
+    sub.gates.push(ng);
+    renderSubcircuitInspector(sub);
+  });
+  document.getElementById('saveSubEditsBtn').addEventListener('click', () => {
+    const sub = state.subcircuits.find(s => s.id === state.inspectingSubId);
+    if (!sub) return;
+    const newName = document.getElementById('editSubName').value.trim();
+    if (newName) sub.name = newName;
+    sub.description = document.getElementById('editSubDesc').value.trim();
+    persistSubcircuits();
+    renderSubcircuitLibrary();
+    renderCircuitGrid();
+    scheduleSimulation(15);
+    closeModal('inspectSubcircuitModal');
+    showToast(`Subcircuito "${sub.name}" actualizado y reejecutado en todas sus instancias.`, 'emerald');
+  });
+  document.getElementById('deleteSubModalBtn').addEventListener('click', () => {
+    const id = state.inspectingSubId;
+    state.subcircuits = state.subcircuits.filter(s => s.id !== id);
+    state.gates = state.gates.filter(g => !(g.type === 'SUB' && g.subId === id));
+    persistSubcircuits();
+    renderSubcircuitLibrary();
+    renderCircuitGrid();
+    scheduleSimulation(15);
+    closeModal('inspectSubcircuitModal');
+    showToast('Subcircuito eliminado.', 'rose');
+  });
+
+  // QASM / Qiskit modal
+  let exportFormat = 'qasm';
+  const renderExportCode = () => {
+    document.getElementById('qasmCodeOutput').textContent =
+      exportFormat === 'qasm' ? generateOpenQASM() : generateQiskitCode();
+    document.getElementById('exportTabQasm').className = `px-3 py-1 rounded-lg text-xs font-semibold ${exportFormat === 'qasm' ? 'bg-sky-500/20 text-sky-300 border border-sky-500/40' : 'bg-slate-800 text-slate-400 border border-transparent'}`;
+    document.getElementById('exportTabQiskit').className = `px-3 py-1 rounded-lg text-xs font-semibold ${exportFormat === 'qiskit' ? 'bg-sky-500/20 text-sky-300 border border-sky-500/40' : 'bg-slate-800 text-slate-400 border border-transparent'}`;
+  };
+  document.getElementById('openQasmModalBtn').addEventListener('click', () => {
+    renderExportCode();
+    openModal('qasmModal');
+  });
+  document.getElementById('exportTabQasm').addEventListener('click', () => { exportFormat = 'qasm'; renderExportCode(); });
+  document.getElementById('exportTabQiskit').addEventListener('click', () => { exportFormat = 'qiskit'; renderExportCode(); });
+  document.getElementById('copyExportCodeBtn').addEventListener('click', () => {
+    const text = document.getElementById('qasmCodeOutput').textContent;
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(() => showToast('Código copiado al portapapeles.', 'emerald')).catch(() => fallbackCopy(text));
+    } else {
+      fallbackCopy(text);
+    }
+  });
+
+  // Preloaded algorithms
+  document.getElementById('loadTeleportBtn').addEventListener('click', () => loadAlgorithm('teleport'));
+  document.getElementById('loadDeutschBtn').addEventListener('click', () => loadAlgorithm('deutsch'));
+  document.getElementById('loadGhzBtn').addEventListener('click', () => loadAlgorithm('ghz'));
+  document.getElementById('loadForDemoBtn').addEventListener('click', () => loadAlgorithm('fordemo'));
+
+  // Mach-Zehnder controls (reactive with debounce)
+  let mzDebounce = null;
+  document.getElementById('mzPhaseSlider').addEventListener('input', (e) => {
+    state.mz.phi = parseFloat(e.target.value);
+    if (mzDebounce) clearTimeout(mzDebounce);
+    mzDebounce = setTimeout(() => updateMZStatsUI(), 25);
+  });
+  document.querySelectorAll('.mz-phi-preset').forEach(btn => {
+    btn.addEventListener('click', () => {
+      state.mz.phi = parseFloat(btn.dataset.mzphi);
+      document.getElementById('mzPhaseSlider').value = state.mz.phi;
+      updateMZStatsUI();
+    });
+  });
+  document.getElementById('mzBs2Toggle').addEventListener('change', (e) => {
+    state.mz.bs2 = e.target.checked;
+    updateMZStatsUI();
+  });
+  document.getElementById('mzBlockUpperToggle').addEventListener('change', (e) => {
+    state.mz.blockUpper = e.target.checked;
+    updateMZStatsUI();
+  });
+  document.getElementById('mzBlockLowerToggle').addEventListener('change', (e) => {
+    state.mz.blockLower = e.target.checked;
+    updateMZStatsUI();
+  });
+  document.getElementById('mzFire1Btn').addEventListener('click', () => fireMZPhotons(1));
+  document.getElementById('mzFire100Btn').addEventListener('click', () => fireMZPhotons(100));
+  document.getElementById('mzFire1000Btn').addEventListener('click', () => fireMZPhotons(1000));
+  document.getElementById('mzResetBtn').addEventListener('click', () => {
+    state.mz.counts = { d0: 0, d1: 0, abs: 0 };
+    updateMZStatsUI();
+  });
+
+  // Elitzur-Vaidman controls
+  document.querySelectorAll('.ev-mode-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      state.ev.mode = btn.dataset.evmode;
+      state.ev.counts = { boom: 0, d0: 0, d1: 0 };
+      state.ev.hiddenRevealed = false;
+      if (state.ev.mode === 'hidden') state.ev.hiddenIsActive = Math.random() < 0.5;
+      document.getElementById('evHiddenControls').classList.toggle('hidden', state.ev.mode !== 'hidden');
+      document.getElementById('evHiddenFeedback').textContent = '';
+      document.querySelectorAll('.ev-mode-btn').forEach(b => {
+        const act = b.dataset.evmode === state.ev.mode;
+        b.className = `ev-mode-btn px-2.5 py-1 rounded-lg font-medium transition ${
+          act ? 'bg-rose-500/20 text-rose-200 border border-rose-500/40' : 'bg-slate-800 text-slate-400 border border-transparent hover:text-slate-200'
+        }`;
+      });
+      updateEVStatsUI();
+    });
+  });
+  document.getElementById('evFire1Btn').addEventListener('click', () => fireEVPhotons(1));
+  document.getElementById('evFire100Btn').addEventListener('click', () => fireEVPhotons(100));
+  document.getElementById('evResetBtn').addEventListener('click', () => {
+    state.ev.counts = { boom: 0, d0: 0, d1: 0 };
+    document.getElementById('evHiddenFeedback').textContent = '';
+    updateEVStatsUI();
+  });
+  const resolveHiddenGuess = (guessedActive) => {
+    state.ev.hiddenRevealed = true;
+    const correct = guessedActive === state.ev.hiddenIsActive;
+    const realTxt = state.ev.hiddenIsActive ? 'ACTIVA' : 'DEFECTUOSA';
+    document.getElementById('evHiddenFeedback').textContent = correct
+      ? `¡Correcto! La bomba era ${realTxt}.`
+      : `Incorrecto: la bomba era ${realTxt}.`;
+    updateEVStatsUI();
+  };
+  document.getElementById('evGuessActiveBtn').addEventListener('click', () => resolveHiddenGuess(true));
+  document.getElementById('evGuessDudBtn').addEventListener('click', () => resolveHiddenGuess(false));
+  document.getElementById('evNewHiddenBtn').addEventListener('click', () => {
+    state.ev.hiddenIsActive = Math.random() < 0.5;
+    state.ev.hiddenRevealed = false;
+    state.ev.counts = { boom: 0, d0: 0, d1: 0 };
+    document.getElementById('evHiddenFeedback').textContent = 'Nueva bomba asignada.';
+    updateEVStatsUI();
+  });
+}
+
+function fallbackCopy(text) {
+  const ta = document.createElement('textarea');
+  ta.value = text;
+  document.body.appendChild(ta);
+  ta.select();
+  try { document.execCommand('copy'); showToast('Código copiado al portapapeles.', 'emerald'); } catch (e) {}
+  ta.remove();
+}
+
+// Bootstrap on DOMContentLoaded
+window.addEventListener('DOMContentLoaded', () => {
+  if (window.lucide) window.lucide.createIcons();
+  initBindings();
+  syncConfigInputs();
+  renderPalette();
+  renderSubcircuitLibrary();
+  renderCircuitGrid();
+  renderLesson('intro');
+  updateMZStatsUI();
+  updateEVStatsUI();
+  scheduleSimulation(10, true);
+  startOpticalLoop();
+});
+</script>
+</body>
+</html>
